@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 // Uses your local IP address for physical device testing if needed
 // or localhost for emulators. Update this as necessary.
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:5000/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.197.252.142:5000/api';
 
 const api = axios.create({
   baseURL: API_URL,
