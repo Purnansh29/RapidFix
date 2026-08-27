@@ -5,6 +5,7 @@ import { COLORS, SIZES } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import { socketService } from '../../services/socket';
+import { useRouter } from 'expo-router';
 
 interface Job {
   _id: string;
@@ -15,6 +16,7 @@ interface Job {
   isEmergency: boolean;
   status: 'Pending' | 'Accepted' | 'InProgress' | 'Completed' | 'Cancelled';
   customerId: {
+    _id: string;
     name: string;
     phone: string;
   };
@@ -22,6 +24,7 @@ interface Job {
 }
 
 export default function WorkerRequests() {
+  const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -184,6 +187,23 @@ export default function WorkerRequests() {
             </TouchableOpacity>
           )}
         </View>
+
+        {['Accepted', 'InProgress'].includes(item.status) && item.customerId && (
+          <TouchableOpacity 
+            style={styles.chatBtn} 
+            onPress={() => router.push({
+              pathname: '/chat',
+              params: {
+                jobId: item._id,
+                receiverId: item.customerId?._id,
+                otherUserName: item.customerId?.name,
+              }
+            })}
+          >
+            <Ionicons name="chatbubbles-outline" size={16} color={COLORS.primary} style={{ marginRight: 6 }} />
+            <Text style={styles.chatBtnText}>Chat with Customer</Text>
+          </TouchableOpacity>
+        )}
 
         {isPending && (
           <View style={styles.actionRow}>
@@ -370,6 +390,21 @@ const styles = StyleSheet.create({
   },
   acceptBtnText: {
     color: COLORS.surface,
+    fontWeight: 'bold',
+  },
+  chatBtn: {
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  chatBtnText: {
+    color: COLORS.primary,
+    fontSize: 13,
     fontWeight: 'bold',
   },
   centered: {

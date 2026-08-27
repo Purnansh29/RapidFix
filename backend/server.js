@@ -10,6 +10,7 @@ const authRoutes = require('./routes/authRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const workerRoutes = require('./routes/workerRoutes');
 const jobRoutes = require('./routes/jobRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -34,6 +35,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/worker', workerRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Database Connection
 const PORT = process.env.PORT || 5000;
@@ -45,6 +47,7 @@ mongoose.connect(MONGODB_URI)
 
 const jwt = require('jsonwebtoken');
 const WorkerProfile = require('./models/WorkerProfile');
+const Message = require('./models/Message');
 
 // Socket.io Setup
 // Middleware for authentication
@@ -83,7 +86,6 @@ io.on('connection', (socket) => {
         );
 
         // Broadcast to all customers looking at the map
-        // In a real app, we might use geographic rooms, but for now broadcast to a general 'customers' room or all
         socket.broadcast.emit('worker:locationUpdated', {
           workerId: socket.user.id,
           latitude,
@@ -92,6 +94,67 @@ io.on('connection', (socket) => {
       } catch (error) {
         console.error('Socket update location error:', error);
       }
+    }
+  });
+
+  // JOIN CHAT ROOM
+  socket.on('chat:joinRoom', (data) => {
+    const { jobId } = data;
+    if (jobId) {
+      socket.join(`chat_${jobId}`);
+      console.log(`Socket ${socket.id} joined chat room: chat_${jobId}`);
+    }
+  });
+
+  // SEND MESSAGE
+  socket.on('chat:sendMessage', async (data) => {
+    const { jobId, receiverId, message } = data;
+    if (jobId && receiverId && message) {
+      try {
+        const msg = await Message.create({
+          jobId,
+          senderId: socket.user.id,
+          receiverId,
+          message,
+        });
+
+        // Broadcast the message to the chat room (to both sender and receiver if joined)
+        io.to(`chat_${jobId}`).emit('chat:messageReceived', {
+          _id: msg._id,
+          jobId: msg.jobId,
+          senderId: {
+            _id: socket.user.id,
+          },
+          receiverId: msg.receiverId,
+          message: msg.message,
+          createdAt: msg.createdAt,
+        });
+      } catch (error) {
+        console.error('Socket send message error:', error);
+      }
+    }
+  });
+
+  // TYPING INDICATORS
+  socket.on('chat:typing', (data) => {
+    const { jobId } = data;
+    if (jobId) {
+      socket.to(`chat_${jobId}`).emit('chat:typingStatus', {
+        jobId,
+        userId: socket.user.id,
+        isTyping: true,
+      });
+    }
+  });
+
+  socket.on('chat:stopTyping', (data) => {
+    const { jobId } = data;
+    if (jobId) {
+      socket.to(`chat_${jobId}`).emit('chat:typingStatus', {
+        jobId,
+        userId: socket.user.id,
+        isTyping: false,
+      });
     }
   });
 
