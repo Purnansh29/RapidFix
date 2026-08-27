@@ -18,7 +18,13 @@ export default function WorkerLayout() {
           tabBarIcon: ({ color }) => <Ionicons name="briefcase" size={24} color={color} />,
         }}
       />
-      {/* We can add Requests, Active Job, Profile here later */}
+      <Tabs.Screen
+        name="requests"
+        options={{
+          title: 'Requests',
+          tabBarIcon: ({ color }) => <Ionicons name="notifications" size={24} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

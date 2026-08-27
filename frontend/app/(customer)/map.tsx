@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS, SIZES } from '../../constants/theme';
 import api from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
+import { socketService } from '../../services/socket';
 
 interface Worker {
   _id: string;
@@ -38,6 +39,7 @@ export default function CustomerMap() {
   const FALLBACK_LNG = 72.5714;
 
   useEffect(() => {
+    let isMounted = true;
     (async () => {
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
@@ -57,20 +59,63 @@ export default function CustomerMap() {
             latitude: currentLocation.coords.latitude,
             longitude: currentLocation.coords.longitude,
           };
-          setCurrentCoords(coords);
-          await fetchWorkers(coords.latitude, coords.longitude);
+          if (isMounted) {
+            setCurrentCoords(coords);
+            await fetchWorkers(coords.latitude, coords.longitude);
+          }
         } catch (gpsError) {
           console.warn('GPS location request failed, using fallback:', gpsError);
           setErrorMsg('Unable to retrieve active location. Showing default area.');
-          setCurrentCoords({ latitude: FALLBACK_LAT, longitude: FALLBACK_LNG });
-          await fetchWorkers(FALLBACK_LAT, FALLBACK_LNG);
+          if (isMounted) {
+            setCurrentCoords({ latitude: FALLBACK_LAT, longitude: FALLBACK_LNG });
+            await fetchWorkers(FALLBACK_LAT, FALLBACK_LNG);
+          }
         }
       } catch (err) {
         console.error('Location initialization error:', err);
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     })();
+
+    return () => {
+      isMounted = false;
+    };
   }, [category]);
+
+  // Setup Socket listener for live location updates
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      const socket = await socketService.connect();
+      if (socket && isMounted) {
+        socket.on('worker:locationUpdated', (data: { workerId: string, latitude: number, longitude: number }) => {
+          setWorkers((prevWorkers) => {
+            return prevWorkers.map((worker) => {
+              if (worker.userId === data.workerId) {
+                return { ...worker, location: [data.longitude, data.latitude] };
+              }
+              return worker;
+            });
+          });
+          
+          // Also update selected worker if it's the one moving
+          setSelectedWorker(prev => {
+            if (prev && prev.userId === data.workerId) {
+              return { ...prev, location: [data.longitude, data.latitude] };
+            }
+            return prev;
+          });
+        });
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+      if (socketService.socket) {
+        socketService.socket.off('worker:locationUpdated');
+      }
+    };
+  }, []);
 
   const fetchWorkers = async (lat: number, lng: number) => {
     try {
@@ -196,8 +241,14 @@ export default function CustomerMap() {
               <TouchableOpacity 
                 style={styles.detailsButton}
                 onPress={() => {
-                  // Navigate to booking/request details or show full profile
-                  Alert.alert('Booking', `Proceed to hire ${selectedWorker.name}?`);
+                  router.push({
+                    pathname: '/(customer)/book',
+                    params: {
+                      workerId: selectedWorker.userId,
+                      workerName: selectedWorker.name,
+                      category: selectedWorker.category,
+                    }
+                  });
                 }}
               >
                 <Text style={styles.detailsButtonText}>Book Service</Text>

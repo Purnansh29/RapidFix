@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Switch, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, SIZES } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
+import * as Location from 'expo-location';
+import { socketService } from '../../services/socket';
 
 interface WorkerStats {
   rating: number;
@@ -21,10 +23,60 @@ export default function WorkerDashboard() {
   const [profile, setProfile] = useState<WorkerStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const locationSubRef = useRef<Location.LocationSubscription | null>(null);
 
   useEffect(() => {
     fetchWorkerProfile();
+    return () => {
+      stopLocationTracking();
+    };
   }, []);
+
+  useEffect(() => {
+    if (profile?.isOnline) {
+      startLocationTracking();
+    } else {
+      stopLocationTracking();
+    }
+  }, [profile?.isOnline]);
+
+  const startLocationTracking = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required to go online.');
+        return;
+      }
+
+      await socketService.connect();
+
+      locationSubRef.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 10000, // Update every 10 seconds
+          distanceInterval: 10, // Or every 10 meters
+        },
+        (location) => {
+          if (socketService.socket) {
+            socketService.socket.emit('worker:updateLocation', {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            });
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Error starting location tracking:', error);
+    }
+  };
+
+  const stopLocationTracking = () => {
+    if (locationSubRef.current) {
+      locationSubRef.current.remove();
+      locationSubRef.current = null;
+    }
+    socketService.disconnect();
+  };
 
   const fetchWorkerProfile = async () => {
     try {
