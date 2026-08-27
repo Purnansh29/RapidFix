@@ -1,99 +1,210 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import MapView, { Marker, Callout } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS, SIZES } from '../../constants/theme';
 import api from '../../services/api';
+import { Ionicons } from '@expo/vector-icons';
 
-interface WorkerLocation {
+interface Worker {
   _id: string;
+  userId: string;
   name: string;
+  email: string;
+  phone: string;
+  profileImage: string;
   category: string;
-  latitude: number;
-  longitude: number;
+  experience: number;
+  description: string;
+  rating: number;
+  totalRatings: number;
+  completedJobs: number;
+  location: [number, number]; // [longitude, latitude]
 }
 
 export default function CustomerMap() {
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [workers, setWorkers] = useState<WorkerLocation[]>([]);
+  const { category } = useLocalSearchParams<{ category?: string }>();
+  const router = useRouter();
+
+  const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Fallback coordinates (Ahmedabad, India) if GPS is disabled or fails
+  const FALLBACK_LAT = 23.0225;
+  const FALLBACK_LNG = 72.5714;
 
   useEffect(() => {
     (async () => {
-      // 1. Request foreground permissions
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setErrorMsg('Permission to access location was denied');
-        Alert.alert('Permission Denied', 'We need your location to find nearby workers.');
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setErrorMsg('Location permission denied. Showing default area.');
+          setCurrentCoords({ latitude: FALLBACK_LAT, longitude: FALLBACK_LNG });
+          await fetchWorkers(FALLBACK_LAT, FALLBACK_LNG);
+          return;
+        }
+
+        let currentLocation;
+        try {
+          currentLocation = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          const coords = {
+            latitude: currentLocation.coords.latitude,
+            longitude: currentLocation.coords.longitude,
+          };
+          setCurrentCoords(coords);
+          await fetchWorkers(coords.latitude, coords.longitude);
+        } catch (gpsError) {
+          console.warn('GPS location request failed, using fallback:', gpsError);
+          setErrorMsg('Unable to retrieve active location. Showing default area.');
+          setCurrentCoords({ latitude: FALLBACK_LAT, longitude: FALLBACK_LNG });
+          await fetchWorkers(FALLBACK_LAT, FALLBACK_LNG);
+        }
+      } catch (err) {
+        console.error('Location initialization error:', err);
         setLoading(false);
-        return;
+      }
+    })();
+  }, [category]);
+
+  const fetchWorkers = async (lat: number, lng: number) => {
+    try {
+      setLoading(true);
+      const params: any = {
+        latitude: lat,
+        longitude: lng,
+        radius: 20000, // 20km radius
+      };
+
+      if (category) {
+        params.category = category;
       }
 
-      // 2. Get current location
-      let currentLocation = await Location.getCurrentPositionAsync({});
-      setLocation(currentLocation);
-
-      // 3. Fetch nearby workers (Mock logic until API is fully implemented)
-      fetchNearbyWorkers(currentLocation.coords.latitude, currentLocation.coords.longitude);
-    })();
-  }, []);
-
-  const fetchNearbyWorkers = async (lat: number, lng: number) => {
-    try {
-      // In a real scenario: await api.get(`/customer/nearby-workers?lat=${lat}&lng=${lng}`);
-      // Mocking workers for demonstration:
-      setWorkers([
-        { _id: '1', name: 'John (Plumber)', category: 'Plumber', latitude: lat + 0.005, longitude: lng + 0.005 },
-        { _id: '2', name: 'Mike (Electrician)', category: 'Electrician', latitude: lat - 0.008, longitude: lng - 0.002 },
-      ]);
-    } catch (e) {
-      console.error('Error fetching workers', e);
+      const response = await api.get('/customer/workers/nearby', { params });
+      if (response.data?.success) {
+        setWorkers(response.data.data);
+      }
+    } catch (e: any) {
+      console.error('Error fetching nearby workers:', e);
+      Alert.alert('Error', e.response?.data?.message || 'Failed to search for nearby workers');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
+  if (loading && !currentCoords) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
-  }
-
-  if (errorMsg) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{errorMsg}</Text>
+        <Text style={styles.loadingText}>Locating nearby professionals...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {location && (
+      {/* Map Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {category ? `${category}s Nearby` : 'Nearby Professionals'}
+        </Text>
+        <TouchableOpacity 
+          style={styles.refreshButton} 
+          onPress={() => currentCoords && fetchWorkers(currentCoords.latitude, currentCoords.longitude)}
+        >
+          <Ionicons name="refresh" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
+      </View>
+
+      {currentCoords && (
         <MapView
           style={styles.map}
           initialRegion={{
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
+            latitude: currentCoords.latitude,
+            longitude: currentCoords.longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
           }}
           showsUserLocation={true}
+          showsMyLocationButton={true}
+          onPress={() => setSelectedWorker(null)}
         >
-          {/* Render Nearby Workers */}
+          {/* Nearby Worker Markers */}
           {workers.map((worker) => (
             <Marker
               key={worker._id}
-              coordinate={{ latitude: worker.latitude, longitude: worker.longitude }}
+              coordinate={{
+                latitude: worker.location[1],
+                longitude: worker.location[0],
+              }}
               title={worker.name}
-              description={worker.category}
-              pinColor="green" // Green for available workers
+              description={`${worker.category} • ${worker.experience} yrs exp`}
+              pinColor="green"
+              onPress={(e) => {
+                e.stopPropagation();
+                setSelectedWorker(worker);
+              }}
             />
           ))}
         </MapView>
+      )}
+
+      {/* Selected Worker Details Card */}
+      {selectedWorker && (
+        <View style={styles.cardContainer}>
+          <View style={styles.workerCard}>
+            <View style={styles.cardHeader}>
+              <Image
+                source={
+                  selectedWorker.profileImage
+                    ? { uri: selectedWorker.profileImage }
+                    : require('../../assets/icon.png') // fallback placeholder
+                }
+                style={styles.avatar}
+              />
+              <View style={styles.workerInfo}>
+                <Text style={styles.workerName}>{selectedWorker.name}</Text>
+                <Text style={styles.workerCategory}>{selectedWorker.category}</Text>
+                
+                {/* Rating & Jobs */}
+                <View style={styles.metaRow}>
+                  <View style={styles.ratingBadge}>
+                    <Ionicons name="star" size={14} color="#FFB020" />
+                    <Text style={styles.ratingText}>
+                      {selectedWorker.rating > 0 ? selectedWorker.rating.toFixed(1) : 'New'}
+                    </Text>
+                  </View>
+                  <Text style={styles.metaDivider}>•</Text>
+                  <Text style={styles.experienceText}>{selectedWorker.experience} years exp</Text>
+                </View>
+              </View>
+            </View>
+
+            <Text style={styles.description} numberOfLines={2}>
+              {selectedWorker.description || 'No description provided.'}
+            </Text>
+
+            <View style={styles.cardActionRow}>
+              <TouchableOpacity 
+                style={styles.detailsButton}
+                onPress={() => {
+                  // Navigate to booking/request details or show full profile
+                  Alert.alert('Booking', `Proceed to hire ${selectedWorker.name}?`);
+                }}
+              >
+                <Text style={styles.detailsButtonText}>Book Service</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       )}
     </View>
   );
@@ -102,6 +213,38 @@ export default function CustomerMap() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  header: {
+    position: 'absolute',
+    top: 50,
+    left: 16,
+    right: 16,
+    height: 56,
+    backgroundColor: COLORS.surface,
+    borderRadius: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    zIndex: 10,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginLeft: 12,
+  },
+  refreshButton: {
+    padding: 8,
   },
   map: {
     width: '100%',
@@ -111,11 +254,104 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: COLORS.background,
     padding: SIZES.lg,
   },
-  errorText: {
-    color: COLORS.error,
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: COLORS.textLight,
+  },
+  cardContainer: {
+    position: 'absolute',
+    bottom: 24,
+    left: 16,
+    right: 16,
+    zIndex: 10,
+  },
+  workerCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 16,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.border,
+  },
+  workerInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  workerName: {
     fontSize: 16,
-    textAlign: 'center',
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  workerCategory: {
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  ratingText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#B27800',
+    marginLeft: 4,
+  },
+  metaDivider: {
+    marginHorizontal: 8,
+    color: COLORS.textLight,
+  },
+  experienceText: {
+    fontSize: 12,
+    color: COLORS.textLight,
+  },
+  description: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  cardActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  detailsButton: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  detailsButtonText: {
+    color: COLORS.surface,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, SIZES } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CustomerHome() {
   const { user } = useAuthStore();
+  const router = useRouter();
 
   const services = [
     { id: 1, name: 'Plumber', icon: 'water' },
@@ -31,7 +33,14 @@ export default function CustomerHome() {
         <Text style={styles.sectionTitle}>Categories</Text>
         <View style={styles.grid}>
           {services.map((service) => (
-            <TouchableOpacity key={service.id} style={styles.serviceCard}>
+            <TouchableOpacity 
+              key={service.id} 
+              style={styles.serviceCard}
+              onPress={() => router.push({
+                pathname: '/(customer)/map',
+                params: { category: service.name }
+              })}
+            >
               <Ionicons name={service.icon as any} size={32} color={COLORS.primary} />
               <Text style={styles.serviceText}>{service.name}</Text>
             </TouchableOpacity>

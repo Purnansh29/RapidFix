@@ -1,9 +1,33 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// Uses your local IP address for physical device testing if needed
-// or localhost for emulators. Update this as necessary.
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.197.252.142:5000/api';
+const getBaseUrl = () => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  
+  if (Platform.OS === 'web') {
+    return 'http://localhost:5000/api';
+  }
+
+  // Auto-detect host IP on physical devices/emulators
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    return `http://${ip}:5000/api`;
+  }
+
+  // Fallback for emulators (Android uses 10.0.2.2 for host localhost loopback)
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:5000/api';
+  }
+
+  return 'http://localhost:5000/api';
+};
+
+const API_URL = getBaseUrl();
 
 const api = axios.create({
   baseURL: API_URL,
