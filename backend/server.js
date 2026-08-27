@@ -8,6 +8,7 @@ const { Server } = require('socket.io');
 
 const authRoutes = require('./routes/authRoutes');
 const customerRoutes = require('./routes/customerRoutes');
+const workerRoutes = require('./routes/workerRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -27,6 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/customer', customerRoutes);
+app.use('/api/worker', workerRoutes);
 
 // Database Connection
 const PORT = process.env.PORT || 5000;
