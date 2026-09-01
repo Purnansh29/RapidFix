@@ -4,8 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
-import COLORS from '../../constants/theme';
-import useAuthStore from '../../store/authStore';
+import { COLORS } from '../../constants/theme';
+import { useAuthStore } from '../../store/authStore';
 
 export default function AdminDashboard() {
   const { logout } = useAuthStore();

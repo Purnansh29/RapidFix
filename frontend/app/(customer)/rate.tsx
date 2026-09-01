@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvo
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
-import COLORS from '../../constants/theme';
+import { COLORS } from '../../constants/theme';
 
 export default function RateScreen() {
   const { jobId, workerName } = useLocalSearchParams();
