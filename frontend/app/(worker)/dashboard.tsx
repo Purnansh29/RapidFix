@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import * as Location from 'expo-location';
 import { socketService } from '../../services/socket';
+import { useFocusEffect } from 'expo-router';
 
 interface WorkerStats {
   rating: number;
@@ -25,12 +26,14 @@ export default function WorkerDashboard() {
   const [updating, setUpdating] = useState(false);
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
 
-  useEffect(() => {
-    fetchWorkerProfile();
-    return () => {
-      stopLocationTracking();
-    };
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchWorkerProfile();
+      return () => {
+        stopLocationTracking();
+      };
+    }, [])
+  );
 
   useEffect(() => {
     if (profile?.isOnline) {

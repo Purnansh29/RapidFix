@@ -162,9 +162,9 @@ exports.cancelJob = async (req, res) => {
     job.cancelledAt = new Date();
     job.cancellationReason = reason || 'Cancelled by user';
 
-    // If worker cancels, mark them available again
-    if (isWorker) {
-      await WorkerProfile.findOneAndUpdate({ userId: req.user.id }, { isAvailable: true });
+    // Always mark worker as available again if the job was cancelled (unless it was just pending, in which case they were already available, but it's safe to set it again)
+    if (job.workerId) {
+      await WorkerProfile.findOneAndUpdate({ userId: job.workerId }, { isAvailable: true });
     }
 
     await job.save();
