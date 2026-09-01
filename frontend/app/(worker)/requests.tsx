@@ -117,6 +117,23 @@ export default function WorkerRequests() {
     }
   };
 
+  const handleCompleteJob = async (jobId: string) => {
+    try {
+      const response = await api.put(`/jobs/${jobId}/complete`);
+      if (response.data?.success) {
+        setJobs((prevJobs) =>
+          prevJobs.map((job) =>
+            job._id === jobId ? { ...job, status: 'Completed' } : job
+          )
+        );
+        Alert.alert('Success', 'Job marked as completed successfully!');
+      }
+    } catch (error: any) {
+      console.error('Complete Job Error:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to complete job');
+    }
+  };
+
   const handleCallCustomer = (phone: string) => {
     Linking.openURL(`tel:${phone}`).catch(() => {
       Alert.alert('Error', 'Unable to place call on this device.');
@@ -189,20 +206,39 @@ export default function WorkerRequests() {
         </View>
 
         {['Accepted', 'InProgress'].includes(item.status) && item.customerId && (
-          <TouchableOpacity 
-            style={styles.chatBtn} 
-            onPress={() => router.push({
-              pathname: '/chat',
-              params: {
-                jobId: item._id,
-                receiverId: item.customerId?._id,
-                otherUserName: item.customerId?.name,
-              }
-            })}
-          >
-            <Ionicons name="chatbubbles-outline" size={16} color={COLORS.primary} style={{ marginRight: 6 }} />
-            <Text style={styles.chatBtnText}>Chat with Customer</Text>
-          </TouchableOpacity>
+          <View style={styles.actionRow}>
+            <TouchableOpacity 
+              style={[styles.chatBtn, { flex: 1, marginRight: 8 }]} 
+              onPress={() => router.push({
+                pathname: '/chat',
+                params: {
+                  jobId: item._id,
+                  receiverId: item.customerId?._id,
+                  otherUserName: item.customerId?.name,
+                }
+              })}
+            >
+              <Ionicons name="chatbubbles-outline" size={16} color={COLORS.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.chatBtnText}>Chat</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionBtn, styles.acceptBtn, { flex: 1 }]} 
+              onPress={() => {
+                Alert.alert(
+                  'Complete Job',
+                  'Are you sure you want to mark this job as completed?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Yes, Complete', onPress: () => handleCompleteJob(item._id) }
+                  ]
+                );
+              }}
+            >
+              <Ionicons name="checkmark-done" size={16} color={COLORS.surface} style={{ marginRight: 6 }} />
+              <Text style={styles.acceptBtnText}>Complete</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {isPending && (

@@ -1,11 +1,11 @@
 const mongoose = require('mongoose');
 
-const reviewSchema = new mongoose.Schema({
+const paymentSchema = new mongoose.Schema({
   jobId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Job',
     required: true,
-    unique: true // One review per job
+    unique: true
   },
   customerId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -17,21 +17,25 @@ const reviewSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  rating: {
+  amount: {
     type: Number,
-    required: true,
-    min: 1,
-    max: 5
+    required: true
   },
-  comment: {
+  status: {
     type: String,
-    trim: true
+    enum: ['Pending', 'Completed', 'Failed', 'Refunded'],
+    default: 'Pending'
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['Cash', 'Credit Card', 'UPI', 'Platform'],
+    default: 'Cash'
+  },
+  transactionId: {
+    type: String
   }
 }, {
   timestamps: true
 });
 
-// Index for faster queries when fetching reviews for a worker
-reviewSchema.index({ workerId: 1, createdAt: -1 });
-
-module.exports = mongoose.model('Review', reviewSchema);
+module.exports = mongoose.model('Payment', paymentSchema);

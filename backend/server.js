@@ -36,6 +36,9 @@ app.use('/api/customer', customerRoutes);
 app.use('/api/worker', workerRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/reviews', require('./routes/reviewRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
 
 // Database Connection
 const PORT = process.env.PORT || 5000;

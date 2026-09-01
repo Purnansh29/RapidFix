@@ -1,5 +1,6 @@
 const Job = require('../models/Job');
 const WorkerProfile = require('../models/WorkerProfile');
+const Payment = require('../models/Payment');
 
 // @desc    Create a new job request
 // @route   POST /api/jobs
@@ -185,5 +186,61 @@ exports.cancelJob = async (req, res) => {
   } catch (error) {
     console.error('Cancel Job Error:', error);
     res.status(500).json({ success: false, message: 'Server error cancelling job' });
+  }
+};
+
+// @desc    Complete a job
+// @route   PUT /api/jobs/:id/complete
+// @access  Private (Worker only)
+exports.completeJob = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+
+    if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
+    if (job.workerId.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Not authorized to complete this job' });
+    }
+    if (!['Accepted', 'InProgress'].includes(job.status)) {
+      return res.status(400).json({ success: false, message: `Cannot complete a job with status ${job.status}` });
+    }
+
+    job.status = 'Completed';
+    
+    // Mark worker as available again
+    await WorkerProfile.findOneAndUpdate({ userId: req.user.id }, { isAvailable: true });
+    
+    await job.save();
+
+    // Auto-create a payment record for this completed job
+    if (job.budget && job.budget > 0) {
+      await Payment.findOneAndUpdate(
+        { jobId: job._id },
+        {
+          jobId: job._id,
+          customerId: job.customerId,
+          workerId: job.workerId,
+          amount: job.budget,
+          status: 'Completed',
+          paymentMethod: 'Cash',
+          transactionId: `TXN-${Date.now()}`
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    // Notify customer
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${job.customerId}`).emit('job:statusUpdated', {
+        jobId: job._id,
+        status: 'Completed',
+        workerId: req.user.id,
+      });
+    }
+
+    res.status(200).json({ success: true, message: 'Job marked as completed', data: job });
+  } catch (error) {
+    console.error('Complete Job Error:', error);
+    res.status(500).json({ success: false, message: 'Server error completing job' });
   }
 };

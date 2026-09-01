@@ -175,6 +175,22 @@ export default function CustomerJobs() {
           </TouchableOpacity>
         )}
 
+        {item.status === 'Completed' && item.workerId && (
+          <TouchableOpacity 
+            style={[styles.chatBtn, { backgroundColor: COLORS.success + '15', borderColor: COLORS.success }]} 
+            onPress={() => router.push({
+              pathname: '/rate',
+              params: {
+                jobId: item._id,
+                workerName: item.workerId?.name,
+              }
+            })}
+          >
+            <Ionicons name="star" size={16} color={COLORS.success} style={{ marginRight: 6 }} />
+            <Text style={[styles.chatBtnText, { color: COLORS.success }]}>Leave Review</Text>
+          </TouchableOpacity>
+        )}
+
         {showCancelButton && (
           <TouchableOpacity style={styles.cancelBtn} onPress={() => handleCancelJob(item._id)}>
             <Text style={styles.cancelBtnText}>Cancel Booking</Text>

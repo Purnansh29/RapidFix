@@ -5,6 +5,7 @@ const {
   respondToJob,
   getMyJobs,
   cancelJob,
+  completeJob,
 } = require('../controllers/jobController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -15,5 +16,6 @@ router.post('/', createJob);
 router.get('/my', getMyJobs);
 router.put('/:id/respond', respondToJob);
 router.put('/:id/cancel', cancelJob);
+router.put('/:id/complete', completeJob);
 
 module.exports = router;

@@ -1,64 +1,95 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../store/authStore';
-import { COLORS, SIZES } from '../../constants/theme';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import api from '../../services/api';
+import COLORS from '../../constants/theme';
+import useAuthStore from '../../store/authStore';
 
 export default function AdminDashboard() {
   const { logout } = useAuthStore();
-  const router = useRouter();
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/(auth)/login');
+  const fetchStats = async () => {
+    try {
+      const response = await api.get('/admin/stats');
+      if (response.data?.success) {
+        setStats(response.data.data);
+      }
+    } catch (error) {
+      console.error('Fetch Stats Error:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  const adminMenu = [
-    { title: 'Workers', icon: 'people', color: '#3B82F6' },
-    { title: 'Customers', icon: 'person', color: '#10B981' },
-    { title: 'Jobs', icon: 'briefcase', color: '#F59E0B' },
-    { title: 'Commissions', icon: 'cash', color: '#8B5CF6' },
-    { title: 'Live Map', icon: 'map', color: '#EF4444' },
-  ];
+  useFocusEffect(
+    useCallback(() => {
+      fetchStats();
+    }, [])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchStats();
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Admin Overview</Text>
-          <TouchableOpacity onPress={handleLogout}>
-            <Ionicons name="log-out" size={28} color={COLORS.error} />
-          </TouchableOpacity>
-        </View>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Admin Dashboard</Text>
+        <Ionicons name="log-out-outline" size={24} color={COLORS.error} onPress={logout} style={{ padding: 8 }} />
+      </View>
 
-        <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>1,248</Text>
-            <Text style={styles.statLabel}>Total Jobs</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>₹45K</Text>
-            <Text style={styles.statLabel}>Revenue</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>156</Text>
-            <Text style={styles.statLabel}>Workers</Text>
-          </View>
-        </View>
+      <ScrollView 
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {stats && (
+          <View style={styles.grid}>
+            <View style={styles.statCard}>
+              <Ionicons name="people-outline" size={32} color={COLORS.primary} />
+              <Text style={styles.statValue}>{stats.users}</Text>
+              <Text style={styles.statLabel}>Customers</Text>
+            </View>
+            
+            <View style={styles.statCard}>
+              <Ionicons name="construct-outline" size={32} color="#00BCD4" />
+              <Text style={styles.statValue}>{stats.workers}</Text>
+              <Text style={styles.statLabel}>Workers</Text>
+            </View>
 
-        <Text style={styles.sectionTitle}>Management</Text>
-        <View style={styles.grid}>
-          {adminMenu.map((item, index) => (
-            <TouchableOpacity key={index} style={styles.menuCard}>
-              <View style={[styles.iconContainer, { backgroundColor: item.color + '20' }]}>
-                <Ionicons name={item.icon as any} size={32} color={item.color} />
-              </View>
-              <Text style={styles.menuTitle}>{item.title}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+            <View style={styles.statCard}>
+              <Ionicons name="briefcase-outline" size={32} color="#9C27B0" />
+              <Text style={styles.statValue}>{stats.jobs?.active}</Text>
+              <Text style={styles.statLabel}>Active Jobs</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <Ionicons name="checkmark-done-circle-outline" size={32} color={COLORS.success} />
+              <Text style={styles.statValue}>{stats.jobs?.completed}</Text>
+              <Text style={styles.statLabel}>Completed</Text>
+            </View>
+
+            <View style={[styles.statCard, { width: '100%' }]}>
+              <Ionicons name="cash-outline" size={32} color="#4CAF50" />
+              <Text style={styles.statValue}>₹{stats.revenue?.toFixed(2)}</Text>
+              <Text style={styles.statLabel}>Est. Revenue</Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -69,74 +100,55 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  content: {
-    padding: SIZES.lg,
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SIZES.xl,
-  },
-  title: {
-    fontSize: SIZES.xl,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SIZES.xl,
-  },
-  statBox: {
+    padding: 20,
     backgroundColor: COLORS.surface,
-    width: '31%',
-    padding: SIZES.md,
-    borderRadius: SIZES.sm,
-    alignItems: 'center',
-    elevation: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f1f1',
   },
-  statValue: {
-    fontSize: 20,
+  headerTitle: {
+    fontSize: 22,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: 4,
   },
-  statLabel: {
-    fontSize: 12,
-    color: COLORS.textLight,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: SIZES.md,
-    color: COLORS.text,
+  content: {
+    padding: 16,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  menuCard: {
-    backgroundColor: COLORS.surface,
+  statCard: {
     width: '48%',
-    padding: SIZES.lg,
-    borderRadius: SIZES.sm,
+    backgroundColor: COLORS.surface,
+    padding: 20,
+    borderRadius: 16,
     alignItems: 'center',
-    marginBottom: SIZES.md,
+    marginBottom: 16,
     elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SIZES.sm,
-  },
-  menuTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+  statValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
     color: COLORS.text,
+    marginTop: 12,
   },
+  statLabel: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    marginTop: 4,
+  }
 });
