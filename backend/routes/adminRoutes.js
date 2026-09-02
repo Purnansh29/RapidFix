@@ -3,6 +3,7 @@ const router = express.Router();
 const { 
   getDashboardStats, 
   getAllUsers, 
+  getUserDetails,
   toggleUserStatus, 
   toggleWorkerVerification,
   getAllJobs 
@@ -15,6 +16,7 @@ router.use(authorize('admin'));
 
 router.get('/stats', getDashboardStats);
 router.get('/users', getAllUsers);
+router.get('/users/:id/details', getUserDetails);
 router.put('/users/:id/status', toggleUserStatus);
 router.put('/workers/:id/verify', toggleWorkerVerification);
 router.get('/jobs', getAllJobs);
