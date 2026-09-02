@@ -11,26 +11,41 @@ export default function CustomerHome() {
   const router = useRouter();
 
   const services = [
-    { id: 1, name: 'Plumber', icon: 'water' },
-    { id: 2, name: 'Electrician', icon: 'flash' },
-    { id: 3, name: 'Carpenter', icon: 'hammer' },
-    { id: 4, name: 'Painter', icon: 'color-palette' },
+    { id: 1, name: 'Plumber', icon: 'water', color: '#0066FF' },
+    { id: 2, name: 'Electrician', icon: 'flash', color: '#FFB020' },
+    { id: 3, name: 'Carpenter', icon: 'hammer', color: '#8D6E63' },
+    { id: 4, name: 'Painter', icon: 'color-palette', color: '#E91E63' },
+    { id: 5, name: 'AC Technician', icon: 'snow', color: '#00BCD4' },
+    { id: 6, name: 'Appliance Repair', icon: 'construct', color: '#FF5722' },
+    { id: 7, name: 'Cleaning & Housekeeping', icon: 'sparkles', color: '#9C27B0' },
+    { id: 8, name: 'Mechanic', icon: 'car', color: '#607D8B' },
+    { id: 9, name: 'All Services', icon: 'apps', color: COLORS.primary, showAll: true },
   ];
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.greeting}>Hello, {user?.name || 'Customer'}</Text>
           <Text style={styles.subtitle}>What do you need help with today?</Text>
         </View>
 
-        <TouchableOpacity style={styles.emergencyCard}>
+        <TouchableOpacity 
+          style={styles.emergencyCard}
+          onPress={() => router.push({
+            pathname: '/(customer)/map',
+            params: { emergency: 'true' }
+          })}
+        >
           <Ionicons name="warning" size={24} color={COLORS.surface} />
           <Text style={styles.emergencyText}>EMERGENCY SERVICE</Text>
         </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Categories</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Service Categories</Text>
+          <Text style={styles.sectionSubtitle}>Find verified pros near you</Text>
+        </View>
+
         <View style={styles.grid}>
           {services.map((service) => (
             <TouchableOpacity 
@@ -38,11 +53,13 @@ export default function CustomerHome() {
               style={styles.serviceCard}
               onPress={() => router.push({
                 pathname: '/(customer)/map',
-                params: { category: service.name }
+                params: service.showAll ? {} : { category: service.name }
               })}
             >
-              <Ionicons name={service.icon as any} size={32} color={COLORS.primary} />
-              <Text style={styles.serviceText}>{service.name}</Text>
+              <View style={[styles.iconContainer, { backgroundColor: service.color + '15' }]}>
+                <Ionicons name={service.icon as any} size={28} color={service.color} />
+              </View>
+              <Text style={styles.serviceText} numberOfLines={2}>{service.name}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -58,6 +75,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: SIZES.lg,
+    paddingBottom: 40,
   },
   header: {
     marginBottom: SIZES.lg,
@@ -70,6 +88,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: SIZES.md,
     color: COLORS.textLight,
+    marginTop: 2,
   },
   emergencyCard: {
     backgroundColor: COLORS.error,
@@ -87,11 +106,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: SIZES.sm,
   },
+  sectionHeader: {
+    marginBottom: SIZES.md,
+  },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    marginBottom: SIZES.md,
+    fontWeight: '700',
     color: COLORS.text,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    marginTop: 2,
   },
   grid: {
     flexDirection: 'row',
@@ -101,15 +127,30 @@ const styles = StyleSheet.create({
   serviceCard: {
     backgroundColor: COLORS.surface,
     width: '48%',
-    padding: SIZES.lg,
-    borderRadius: SIZES.sm,
+    padding: SIZES.md,
+    borderRadius: 12,
     alignItems: 'center',
     marginBottom: SIZES.md,
     elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    minHeight: 110,
+    justifyContent: 'center',
+  },
+  iconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   serviceText: {
-    marginTop: SIZES.sm,
+    fontSize: 13,
     fontWeight: '600',
     color: COLORS.text,
+    textAlign: 'center',
   },
 });
