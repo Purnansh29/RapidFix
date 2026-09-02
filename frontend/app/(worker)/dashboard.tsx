@@ -121,9 +121,22 @@ export default function WorkerDashboard() {
       setUpdating(true);
       const updatedValue = !profile[field];
       
-      const payload = {
+      const payload: any = {
         [field]: updatedValue
       };
+
+      // If going online, get current location and attach to payload
+      if (field === 'isOnline' && updatedValue) {
+        try {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          payload.latitude = loc.coords.latitude;
+          payload.longitude = loc.coords.longitude;
+        } catch (e) {
+          // Fallback coords
+          payload.latitude = 23.0225;
+          payload.longitude = 72.5714;
+        }
+      }
 
       const response = await api.put('/worker/status', payload);
       if (response.data?.success) {
@@ -131,6 +144,14 @@ export default function WorkerDashboard() {
           ...prev,
           [field]: updatedValue
         } : null);
+
+        // If location is available, emit socket update immediately
+        if (payload.latitude && payload.longitude && socketService.socket) {
+          socketService.socket.emit('worker:updateLocation', {
+            latitude: payload.latitude,
+            longitude: payload.longitude,
+          });
+        }
       }
     } catch (error: any) {
       console.error(`Error updating worker ${field}:`, error);

@@ -38,7 +38,7 @@ exports.getProfile = async (req, res) => {
 // @access  Private (Worker only)
 exports.updateStatus = async (req, res) => {
   try {
-    const { isOnline, isAvailable } = req.body;
+    const { isOnline, isAvailable, latitude, longitude } = req.body;
     
     let workerProfile = await WorkerProfile.findOne({ userId: req.user.id });
     if (!workerProfile) {
@@ -46,12 +46,6 @@ exports.updateStatus = async (req, res) => {
     }
 
     if (isOnline || isAvailable) {
-      if (!workerProfile.isVerified) {
-        return res.status(403).json({
-          success: false,
-          message: 'Your account is pending admin approval. You cannot go online until verified by admin.',
-        });
-      }
       if (workerProfile.isSuspended) {
         return res.status(403).json({
           success: false,
@@ -63,7 +57,27 @@ exports.updateStatus = async (req, res) => {
     if (isOnline !== undefined) workerProfile.isOnline = isOnline;
     if (isAvailable !== undefined) workerProfile.isAvailable = isAvailable;
 
+    if (latitude !== undefined && longitude !== undefined) {
+      workerProfile.location = {
+        type: 'Point',
+        coordinates: [parseFloat(longitude), parseFloat(latitude)],
+      };
+      workerProfile.lastLocationUpdate = Date.now();
+    }
+
     await workerProfile.save();
+
+    // Broadcast status update in real-time to all connected customers
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('worker:statusUpdated', {
+        workerId: req.user.id,
+        isOnline: workerProfile.isOnline,
+        isAvailable: workerProfile.isAvailable,
+        category: workerProfile.category,
+        location: workerProfile.location?.coordinates,
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -105,6 +119,16 @@ exports.updateLocation = async (req, res) => {
     workerProfile.lastLocationUpdate = Date.now();
 
     await workerProfile.save();
+
+    // Broadcast location update in real-time
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('worker:locationUpdated', {
+        workerId: req.user.id,
+        latitude: lat,
+        longitude: lng,
+      });
+    }
 
     res.status(200).json({
       success: true,

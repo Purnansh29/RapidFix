@@ -18,59 +18,84 @@ exports.getNearbyWorkers = async (req, res) => {
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
     
-    // Default radius is 10km (10000 meters)
-    const searchRadius = radius ? parseFloat(radius) : 10000; 
+    // Default radius is 50km (50000 meters) to encompass city/metro area
+    const searchRadius = radius ? parseFloat(radius) : 50000; 
 
-    // Build the query
+    // Build the query: online, available, not suspended
     const query = {
       isOnline: true,
       isAvailable: true,
-      isSuspended: false,
-      isVerified: true,
+      isSuspended: { $ne: true },
     };
 
-    if (category) {
-      query.category = { $regex: new RegExp(`^${category}$`, 'i') }; // Case-insensitive matching
+    // If category is specified and is not "all", filter by category
+    if (category && !['all', 'all services', 'emergency'].includes(category.toLowerCase().trim())) {
+      query.category = { $regex: new RegExp(`^${category.trim()}$`, 'i') };
     }
 
-    // GeoJSON geospatial query using $near
-    query.location = {
-      $near: {
-        $geometry: {
-          type: 'Point',
-          coordinates: [lng, lat], // [longitude, latitude]
+    // First try geospatial query within searchRadius
+    let workers = [];
+    try {
+      workers = await WorkerProfile.find({
+        ...query,
+        location: {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [lng, lat],
+            },
+            $maxDistance: searchRadius,
+          },
         },
-        $maxDistance: searchRadius, // Distance in meters
-      },
-    };
-
-    // Find and populate user details (excluding password)
-    const workers = await WorkerProfile.find(query)
-      .populate({
+      }).populate({
         path: 'userId',
-        select: 'name email phone profileImage address',
+        select: 'name email phone profileImage address isActive',
       });
+    } catch (geoErr) {
+      console.warn('Geospatial $near query warning, falling back to general query:', geoErr.message);
+    }
 
-    // Format the response to combine user info and profile info nicely
+    // If no workers found with strict $near (or workers have uninitialized [0,0] coordinates),
+    // fetch all online workers matching the query
+    if (!workers || workers.length === 0) {
+      workers = await WorkerProfile.find(query).populate({
+        path: 'userId',
+        select: 'name email phone profileImage address isActive',
+      });
+    }
+
+    // Format the response and assign fallback nearby coordinates if coordinates are [0, 0]
     const formattedWorkers = workers
-      .filter(w => w.userId) // Ensure User details are present
-      .map(w => ({
-        _id: w._id,
-        userId: w.userId._id,
-        name: w.userId.name,
-        email: w.userId.email,
-        phone: w.userId.phone,
-        profileImage: w.userId.profileImage,
-        address: w.userId.address,
-        category: w.category,
-        experience: w.experience,
-        description: w.description,
-        rating: w.rating,
-        totalRatings: w.totalRatings,
-        completedJobs: w.completedJobs,
-        location: w.location.coordinates, // [longitude, latitude]
-        distance: w.location && w.location.coordinates ? 'Calculated by client' : 'N/A', // fallback helper
-      }));
+      .filter(w => w.userId && w.userId.isActive !== false)
+      .map((w, index) => {
+        let coords = w.location?.coordinates || [0, 0];
+        
+        // If coordinates are uninitialized [0, 0], place them slightly offset around the user coordinates
+        if (coords[0] === 0 && coords[1] === 0) {
+          const offsetLat = (index + 1) * 0.003 * (index % 2 === 0 ? 1 : -1);
+          const offsetLng = (index + 1) * 0.003 * (index % 3 === 0 ? 1 : -1);
+          coords = [lng + offsetLng, lat + offsetLat];
+        }
+
+        return {
+          _id: w._id,
+          userId: w.userId._id,
+          name: w.userId.name,
+          email: w.userId.email,
+          phone: w.userId.phone,
+          profileImage: w.userId.profileImage,
+          address: w.userId.address,
+          category: w.category,
+          experience: w.experience,
+          description: w.description,
+          rating: w.rating,
+          totalRatings: w.totalRatings,
+          completedJobs: w.completedJobs,
+          isVerified: w.isVerified,
+          location: coords, // [longitude, latitude]
+          distance: 'Nearby',
+        };
+      });
 
     res.status(200).json({
       success: true,

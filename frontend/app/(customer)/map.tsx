@@ -24,10 +24,25 @@ interface Worker {
   location: [number, number]; // [longitude, latitude]
 }
 
+const CATEGORIES = [
+  'All',
+  'Plumber',
+  'Electrician',
+  'Painter',
+  'Carpenter',
+  'AC Technician',
+  'Appliance Repair',
+  'Cleaning & Housekeeping',
+  'Mechanic',
+];
+
 export default function CustomerMap() {
-  const { category } = useLocalSearchParams<{ category?: string }>();
+  const params = useLocalSearchParams<{ category?: string; emergency?: string }>();
   const router = useRouter();
 
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    params.category && params.category !== 'All Services' ? params.category : 'All'
+  );
   const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
@@ -38,6 +53,32 @@ export default function CustomerMap() {
   const FALLBACK_LAT = 23.0225;
   const FALLBACK_LNG = 72.5714;
 
+  const fetchWorkers = async (lat: number, lng: number, cat?: string) => {
+    try {
+      setLoading(true);
+      const categoryToFilter = cat !== undefined ? cat : selectedCategory;
+      const apiParams: any = {
+        latitude: lat,
+        longitude: lng,
+        radius: 50000, // 50km radius
+      };
+
+      if (categoryToFilter && categoryToFilter !== 'All') {
+        apiParams.category = categoryToFilter;
+      }
+
+      const response = await api.get('/customer/workers/nearby', { params: apiParams });
+      if (response.data?.success) {
+        setWorkers(response.data.data);
+      }
+    } catch (e: any) {
+      console.error('Error fetching nearby workers:', e);
+      Alert.alert('Error', e.response?.data?.message || 'Failed to search for nearby workers');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
     (async () => {
@@ -45,8 +86,9 @@ export default function CustomerMap() {
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           setErrorMsg('Location permission denied. Showing default area.');
-          setCurrentCoords({ latitude: FALLBACK_LAT, longitude: FALLBACK_LNG });
-          await fetchWorkers(FALLBACK_LAT, FALLBACK_LNG);
+          const coords = { latitude: FALLBACK_LAT, longitude: FALLBACK_LNG };
+          setCurrentCoords(coords);
+          await fetchWorkers(coords.latitude, coords.longitude, selectedCategory);
           return;
         }
 
@@ -61,14 +103,15 @@ export default function CustomerMap() {
           };
           if (isMounted) {
             setCurrentCoords(coords);
-            await fetchWorkers(coords.latitude, coords.longitude);
+            await fetchWorkers(coords.latitude, coords.longitude, selectedCategory);
           }
         } catch (gpsError) {
           console.warn('GPS location request failed, using fallback:', gpsError);
           setErrorMsg('Unable to retrieve active location. Showing default area.');
+          const coords = { latitude: FALLBACK_LAT, longitude: FALLBACK_LNG };
           if (isMounted) {
-            setCurrentCoords({ latitude: FALLBACK_LAT, longitude: FALLBACK_LNG });
-            await fetchWorkers(FALLBACK_LAT, FALLBACK_LNG);
+            setCurrentCoords(coords);
+            await fetchWorkers(coords.latitude, coords.longitude, selectedCategory);
           }
         }
       } catch (err) {
@@ -80,14 +123,15 @@ export default function CustomerMap() {
     return () => {
       isMounted = false;
     };
-  }, [category]);
+  }, [selectedCategory]);
 
-  // Setup Socket listener for live location updates
+  // Setup Socket listener for live location & status updates
   useEffect(() => {
     let isMounted = true;
     (async () => {
       const socket = await socketService.connect();
       if (socket && isMounted) {
+        // Live Location updates
         socket.on('worker:locationUpdated', (data: { workerId: string, latitude: number, longitude: number }) => {
           setWorkers((prevWorkers) => {
             return prevWorkers.map((worker) => {
@@ -98,13 +142,19 @@ export default function CustomerMap() {
             });
           });
           
-          // Also update selected worker if it's the one moving
           setSelectedWorker(prev => {
             if (prev && prev.userId === data.workerId) {
               return { ...prev, location: [data.longitude, data.latitude] };
             }
             return prev;
           });
+        });
+
+        // Live Status updates (when any worker turns online/offline)
+        socket.on('worker:statusUpdated', (data: { workerId: string, isOnline: boolean, isAvailable: boolean }) => {
+          if (currentCoords) {
+            fetchWorkers(currentCoords.latitude, currentCoords.longitude, selectedCategory);
+          }
         });
       }
     })();
@@ -113,32 +163,20 @@ export default function CustomerMap() {
       isMounted = false;
       if (socketService.socket) {
         socketService.socket.off('worker:locationUpdated');
+        socketService.socket.off('worker:statusUpdated');
       }
     };
-  }, []);
+  }, [currentCoords, selectedCategory]);
 
-  const fetchWorkers = async (lat: number, lng: number) => {
-    try {
-      setLoading(true);
-      const params: any = {
-        latitude: lat,
-        longitude: lng,
-        radius: 20000, // 20km radius
-      };
-
-      if (category) {
-        params.category = category;
-      }
-
-      const response = await api.get('/customer/workers/nearby', { params });
-      if (response.data?.success) {
-        setWorkers(response.data.data);
-      }
-    } catch (e: any) {
-      console.error('Error fetching nearby workers:', e);
-      Alert.alert('Error', e.response?.data?.message || 'Failed to search for nearby workers');
-    } finally {
-      setLoading(false);
+  const getMarkerColor = (cat: string) => {
+    switch (cat?.toLowerCase()) {
+      case 'painter': return '#E91E63';
+      case 'electrician': return '#FFB020';
+      case 'carpenter': return '#8D6E63';
+      case 'ac technician': return '#00BCD4';
+      case 'appliance repair': return '#FF5722';
+      case 'mechanic': return '#607D8B';
+      default: return '#0066FF';
     }
   };
 
@@ -158,15 +196,53 @@ export default function CustomerMap() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {category ? `${category}s Nearby` : 'Nearby Professionals'}
-        </Text>
+        <View style={{ flex: 1, marginLeft: 8 }}>
+          <Text style={styles.headerTitle}>
+            {selectedCategory === 'All' ? 'All Active Professionals' : `${selectedCategory}s Nearby`}
+          </Text>
+          <Text style={styles.headerSubtitle}>
+            🟢 {workers.length} {workers.length === 1 ? 'pro' : 'pros'} online & ready
+          </Text>
+        </View>
         <TouchableOpacity 
           style={styles.refreshButton} 
-          onPress={() => currentCoords && fetchWorkers(currentCoords.latitude, currentCoords.longitude)}
+          onPress={() => currentCoords && fetchWorkers(currentCoords.latitude, currentCoords.longitude, selectedCategory)}
         >
           <Ionicons name="refresh" size={20} color={COLORS.primary} />
         </TouchableOpacity>
+      </View>
+
+      {/* Category Pills Filter */}
+      <View style={styles.categoryPillsContainer}>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={CATEGORIES}
+          keyExtractor={(item) => item}
+          contentContainerStyle={styles.categoryPillsList}
+          renderItem={({ item }) => {
+            const isActive = selectedCategory === item;
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.categoryPill,
+                  isActive && styles.categoryPillActive
+                ]}
+                onPress={() => {
+                  setSelectedCategory(item);
+                  setSelectedWorker(null);
+                }}
+              >
+                <Text style={[
+                  styles.categoryPillText,
+                  isActive && styles.categoryPillTextActive
+                ]}>
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
       </View>
 
       {currentCoords && (
@@ -175,8 +251,8 @@ export default function CustomerMap() {
           initialRegion={{
             latitude: currentCoords.latitude,
             longitude: currentCoords.longitude,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
+            latitudeDelta: 0.08,
+            longitudeDelta: 0.08,
           }}
           showsUserLocation={true}
           showsMyLocationButton={true}
@@ -192,7 +268,7 @@ export default function CustomerMap() {
               }}
               title={worker.name}
               description={`${worker.category} • ${worker.experience} yrs exp`}
-              pinColor="green"
+              pinColor={getMarkerColor(worker.category)}
               onPress={(e) => {
                 e.stopPropagation();
                 setSelectedWorker(worker);
@@ -271,12 +347,13 @@ const styles = StyleSheet.create({
     top: 50,
     left: 16,
     right: 16,
-    height: 56,
+    minHeight: 56,
     backgroundColor: COLORS.surface,
-    borderRadius: 28,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
+    paddingVertical: 8,
     zIndex: 10,
     elevation: 4,
     shadowColor: '#000',
@@ -288,14 +365,53 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   headerTitle: {
-    flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginLeft: 12,
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    marginTop: 1,
   },
   refreshButton: {
-    padding: 8,
+    padding: 6,
+  },
+  categoryPillsContainer: {
+    position: 'absolute',
+    top: 116,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  categoryPillsList: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  categoryPill: {
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  categoryPillActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  categoryPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  categoryPillTextActive: {
+    color: COLORS.surface,
   },
   map: {
     width: '100%',
