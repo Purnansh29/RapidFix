@@ -8,35 +8,51 @@ export default function AdminLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textLight,
+        tabBarInactiveTintColor: COLORS.textMuted,
         tabBarStyle: {
           backgroundColor: COLORS.surface,
           borderTopWidth: 1,
-          borderTopColor: '#f1f1f1',
-          paddingBottom: 5,
-          paddingTop: 5,
+          borderTopColor: COLORS.borderLight,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 6,
+          elevation: 4,
+          shadowColor: '#0F172A',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.04,
+          shadowRadius: 4,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
         },
       }}
     >
       <Tabs.Screen
         name="dashboard"
         options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ color }) => <Ionicons name="stats-chart" size={24} color={color} />,
+          title: 'Overview',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'stats-chart' : 'stats-chart-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="users"
         options={{
-          title: 'Users',
-          tabBarIcon: ({ color }) => <Ionicons name="people" size={24} color={color} />,
+          title: 'Directory',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="jobs"
         options={{
-          title: 'Jobs',
-          tabBarIcon: ({ color }) => <Ionicons name="briefcase" size={24} color={color} />,
+          title: 'Job Monitor',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={22} color={color} />
+          ),
         }}
       />
     </Tabs>

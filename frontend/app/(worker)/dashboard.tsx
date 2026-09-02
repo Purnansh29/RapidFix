@@ -176,19 +176,26 @@ export default function WorkerDashboard() {
         
         {/* Header with Title and Logout */}
         <View style={styles.topBar}>
-          <View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.greeting}>Hello, {user?.name || 'Worker'}</Text>
-              {profile?.isVerified && (
-                <Ionicons name="checkmark-circle" size={18} color={COLORS.success} style={{ marginLeft: 6 }} />
-              )}
+          <View style={styles.headerLeft}>
+            <View style={styles.workerAvatar}>
+              <Text style={styles.workerAvatarText}>
+                {user?.name ? user.name.charAt(0).toUpperCase() : 'W'}
+              </Text>
             </View>
-            <Text style={styles.subtext}>
-              {profile ? `${profile.category} • ${profile.experience} yrs experience` : 'Service Provider'}
-            </Text>
+            <View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.greeting}>Hello, {user?.name || 'Worker'}</Text>
+                {profile?.isVerified && (
+                  <Ionicons name="checkmark-circle" size={17} color={COLORS.success} style={{ marginLeft: 5 }} />
+                )}
+              </View>
+              <Text style={styles.subtext}>
+                {profile ? `${profile.category} • ${profile.experience} yrs exp` : 'Service Provider'}
+              </Text>
+            </View>
           </View>
           <TouchableOpacity style={styles.logoutBtn} onPress={() => logout()}>
-            <Ionicons name="log-out-outline" size={24} color={COLORS.error} />
+            <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
           </TouchableOpacity>
         </View>
 
@@ -291,10 +298,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SIZES.lg,
   },
-  greeting: {
-    fontSize: SIZES.xl,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  workerAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  workerAvatarText: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.primary,
+  },
+  greeting: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
   },
   subtext: {
     fontSize: 13,
@@ -302,10 +329,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   logoutBtn: {
-    padding: 8,
-    backgroundColor: COLORS.surface,
-    borderRadius: 8,
-    elevation: 1,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FEF2F2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
   pendingCard: {
     backgroundColor: '#FFF8E1',
@@ -394,12 +425,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     width: '48%',
     padding: SIZES.lg,
-    borderRadius: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
   },
   statLabel: {
     fontSize: 13,
