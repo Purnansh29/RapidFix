@@ -45,6 +45,21 @@ exports.updateStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Worker profile not found' });
     }
 
+    if (isOnline || isAvailable) {
+      if (!workerProfile.isVerified) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account is pending admin approval. You cannot go online until verified by admin.',
+        });
+      }
+      if (workerProfile.isSuspended) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account is currently suspended. Please contact support.',
+        });
+      }
+    }
+
     if (isOnline !== undefined) workerProfile.isOnline = isOnline;
     if (isAvailable !== undefined) workerProfile.isAvailable = isAvailable;
 

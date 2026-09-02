@@ -46,9 +46,24 @@ exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find({ role: { $ne: 'admin' } })
       .select('-password')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
       
-    res.status(200).json({ success: true, count: users.length, data: users });
+    // Enrich workers with their WorkerProfile
+    const workerUserIds = users.filter(u => u.role === 'worker').map(u => u._id);
+    const workerProfiles = await WorkerProfile.find({ userId: { $in: workerUserIds } }).lean();
+    
+    const profileMap = {};
+    workerProfiles.forEach(p => {
+      profileMap[p.userId.toString()] = p;
+    });
+
+    const enrichedUsers = users.map(u => ({
+      ...u,
+      workerProfile: profileMap[u._id.toString()] || null
+    }));
+
+    res.status(200).json({ success: true, count: enrichedUsers.length, data: enrichedUsers });
   } catch (error) {
     console.error('Admin Users Error:', error);
     res.status(500).json({ success: false, message: 'Server error fetching users' });
@@ -66,12 +81,62 @@ exports.toggleUserStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     
-    // Toggle status (Assume we add an isActive field to User schema)
-    // For now we'll just return a success message if isActive isn't in schema yet
-    res.status(200).json({ success: true, message: `User status toggled successfully`, data: user });
+    user.isActive = user.isActive === false ? true : false;
+    await user.save();
+
+    // If worker is deactivated, also force them offline/suspended
+    if (user.role === 'worker') {
+      await WorkerProfile.findOneAndUpdate(
+        { userId: user._id },
+        { 
+          isSuspended: !user.isActive, 
+          isOnline: user.isActive ? undefined : false,
+          isAvailable: user.isActive ? undefined : false,
+        }
+      );
+    }
+    
+    res.status(200).json({ 
+      success: true, 
+      message: `User is now ${user.isActive ? 'Active' : 'Banned/Inactive'}`, 
+      data: user 
+    });
   } catch (error) {
     console.error('Admin Toggle User Error:', error);
     res.status(500).json({ success: false, message: 'Server error updating user status' });
+  }
+};
+
+// @desc    Approve/Verify or Revoke worker verification
+// @route   PUT /api/admin/workers/:id/verify
+// @access  Private (Admin only)
+exports.toggleWorkerVerification = async (req, res) => {
+  try {
+    const { isVerified } = req.body;
+    let profile = await WorkerProfile.findOne({ userId: req.params.id });
+    
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Worker profile not found' });
+    }
+
+    profile.isVerified = isVerified !== undefined ? isVerified : !profile.isVerified;
+    
+    // If worker is revoked/unverified, force offline
+    if (!profile.isVerified) {
+      profile.isOnline = false;
+      profile.isAvailable = false;
+    }
+    
+    await profile.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Worker account has been ${profile.isVerified ? 'Approved' : 'Unverified'}`,
+      data: profile,
+    });
+  } catch (error) {
+    console.error('Admin Toggle Worker Verification Error:', error);
+    res.status(500).json({ success: false, message: 'Server error updating worker verification' });
   }
 };
 

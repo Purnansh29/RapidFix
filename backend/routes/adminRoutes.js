@@ -4,6 +4,7 @@ const {
   getDashboardStats, 
   getAllUsers, 
   toggleUserStatus, 
+  toggleWorkerVerification,
   getAllJobs 
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/authMiddleware');
@@ -15,6 +16,7 @@ router.use(authorize('admin'));
 router.get('/stats', getDashboardStats);
 router.get('/users', getAllUsers);
 router.put('/users/:id/status', toggleUserStatus);
+router.put('/workers/:id/verify', toggleWorkerVerification);
 router.get('/jobs', getAllJobs);
 
 module.exports = router;

@@ -26,6 +26,7 @@ exports.getNearbyWorkers = async (req, res) => {
       isOnline: true,
       isAvailable: true,
       isSuspended: false,
+      isVerified: true,
     };
 
     if (category) {

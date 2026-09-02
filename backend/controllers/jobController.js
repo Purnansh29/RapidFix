@@ -15,8 +15,8 @@ exports.createJob = async (req, res) => {
 
     // Find the target worker profile
     const workerProfile = await WorkerProfile.findOne({ userId: workerId });
-    if (!workerProfile || !workerProfile.isOnline || !workerProfile.isAvailable) {
-      return res.status(400).json({ success: false, message: 'Worker is not available at the moment' });
+    if (!workerProfile || !workerProfile.isOnline || !workerProfile.isAvailable || !workerProfile.isVerified) {
+      return res.status(400).json({ success: false, message: 'Worker is not available or approved at the moment' });
     }
 
     const job = await Job.create({

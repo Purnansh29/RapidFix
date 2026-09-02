@@ -1,11 +1,34 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  ActivityIndicator, 
+  Alert, 
+  ScrollView,
+  Modal,
+  FlatList 
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
 import { COLORS, SIZES } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
+
+const SERVICE_CATEGORIES = [
+  { label: 'Plumber', icon: 'water-outline' },
+  { label: 'Electrician', icon: 'flash-outline' },
+  { label: 'Carpenter', icon: 'hammer-outline' },
+  { label: 'Painter', icon: 'color-palette-outline' },
+  { label: 'AC Technician', icon: 'snow-outline' },
+  { label: 'Appliance Repair', icon: 'construct-outline' },
+  { label: 'Cleaning & Housekeeping', icon: 'sparkles-outline' },
+  { label: 'Mechanic', icon: 'car-outline' },
+  { label: 'Other', icon: 'apps-outline' },
+];
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
@@ -14,11 +37,17 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'customer' | 'worker'>('customer');
   const [category, setCategory] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
   const [experience, setExperience] = useState('');
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [loading, setLoading] = useState(false);
   
   const router = useRouter();
   const { login } = useAuthStore();
+
+  const selectedCategoryDisplay = category === 'Other' 
+    ? (customCategory ? `Other: ${customCategory}` : 'Other (Specify below)') 
+    : category;
 
   const handleRegister = async () => {
     if (!name || !email || !phone || !password) {
@@ -26,8 +55,10 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (role === 'worker' && (!category || !experience)) {
-      Alert.alert('Error', 'Worker category and experience are required');
+    const finalCategory = category === 'Other' ? customCategory.trim() : category;
+
+    if (role === 'worker' && (!finalCategory || !experience)) {
+      Alert.alert('Error', 'Please select a service category and enter your experience');
       return;
     }
 
@@ -35,15 +66,30 @@ export default function RegisterScreen() {
       setLoading(true);
       const payload: any = { name, email, phone, password, role };
       if (role === 'worker') {
-        payload.category = category;
+        payload.category = finalCategory;
         payload.experience = parseInt(experience, 10) || 1;
-        payload.description = `I am a professional ${category}`;
+        payload.description = `I am a professional ${finalCategory}`;
       }
 
       const response = await api.post('/auth/register', payload);
       
       if (response.data.success) {
-        await login(response.data.user, response.data.token);
+        if (role === 'worker') {
+          Alert.alert(
+            'Registration Submitted',
+            'Your professional account has been registered! It will be reviewed and approved by the Admin team before you can start accepting jobs.',
+            [
+              {
+                text: 'OK',
+                onPress: async () => {
+                  await login(response.data.user, response.data.token);
+                }
+              }
+            ]
+          );
+        } else {
+          await login(response.data.user, response.data.token);
+        }
       }
     } catch (error: any) {
       Alert.alert('Registration Failed', error.response?.data?.message || 'An error occurred');
@@ -74,6 +120,15 @@ export default function RegisterScreen() {
             <Text style={[styles.roleText, role === 'worker' && styles.roleTextActive]}>Professional</Text>
           </TouchableOpacity>
         </View>
+
+        {role === 'worker' && (
+          <View style={styles.approvalNotice}>
+            <Ionicons name="shield-checkmark" size={20} color="#0066FF" style={{ marginRight: 8 }} />
+            <Text style={styles.approvalNoticeText}>
+              Professional accounts require one-time Admin verification before going live.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Full Name</Text>
@@ -121,15 +176,32 @@ export default function RegisterScreen() {
 
         {role === 'worker' && (
           <>
+            {/* Service Category Dropdown Trigger */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Service Category</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Plumber, Electrician, Painter"
-                value={category}
-                onChangeText={setCategory}
-              />
+              <TouchableOpacity
+                style={styles.dropdownTrigger}
+                onPress={() => setShowCategoryModal(true)}
+              >
+                <Text style={category ? styles.dropdownSelectedText : styles.dropdownPlaceholderText}>
+                  {category ? selectedCategoryDisplay : 'Select your profession / service'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
+              </TouchableOpacity>
             </View>
+
+            {category === 'Other' && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Specify Your Profession</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. Locksmith, Roofer"
+                  value={customCategory}
+                  onChangeText={setCustomCategory}
+                />
+              </View>
+            )}
+
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Years of Experience</Text>
               <TextInput
@@ -151,7 +223,9 @@ export default function RegisterScreen() {
           {loading ? (
             <ActivityIndicator color={COLORS.surface} />
           ) : (
-            <Text style={styles.buttonText}>Register</Text>
+            <Text style={styles.buttonText}>
+              {role === 'worker' ? 'Submit for Approval' : 'Register'}
+            </Text>
           )}
         </TouchableOpacity>
 
@@ -162,6 +236,60 @@ export default function RegisterScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Category Dropdown Selection Modal */}
+      <Modal
+        visible={showCategoryModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCategoryModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Service Category</Text>
+              <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={SERVICE_CATEGORIES}
+              keyExtractor={(item) => item.label}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.categoryOption,
+                    category === item.label && styles.categoryOptionSelected
+                  ]}
+                  onPress={() => {
+                    setCategory(item.label);
+                    setShowCategoryModal(false);
+                  }}
+                >
+                  <View style={styles.categoryOptionLeft}>
+                    <Ionicons 
+                      name={item.icon as any} 
+                      size={22} 
+                      color={category === item.label ? COLORS.primary : COLORS.text} 
+                      style={{ marginRight: 12 }}
+                    />
+                    <Text style={[
+                      styles.categoryOptionText,
+                      category === item.label && styles.categoryOptionTextSelected
+                    ]}>
+                      {item.label}
+                    </Text>
+                  </View>
+                  {category === item.label && (
+                    <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -189,7 +317,7 @@ const styles = StyleSheet.create({
   },
   roleSelector: {
     flexDirection: 'row',
-    marginBottom: SIZES.xl,
+    marginBottom: SIZES.md,
     gap: SIZES.md,
   },
   roleButton: {
@@ -216,6 +344,22 @@ const styles = StyleSheet.create({
   roleTextActive: {
     color: COLORS.surface,
   },
+  approvalNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EBF3FF',
+    padding: 12,
+    borderRadius: SIZES.sm,
+    marginBottom: SIZES.md,
+    borderWidth: 1,
+    borderColor: '#CCE0FF',
+  },
+  approvalNoticeText: {
+    fontSize: 13,
+    color: '#0052CC',
+    flex: 1,
+    lineHeight: 18,
+  },
   inputContainer: {
     marginBottom: SIZES.md,
   },
@@ -232,6 +376,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     fontSize: 16,
+  },
+  dropdownTrigger: {
+    backgroundColor: COLORS.surface,
+    padding: SIZES.md,
+    borderRadius: SIZES.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dropdownSelectedText: {
+    fontSize: 16,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  dropdownPlaceholderText: {
+    fontSize: 16,
+    color: COLORS.textLight,
   },
   button: {
     backgroundColor: COLORS.primary,
@@ -258,6 +421,56 @@ const styles = StyleSheet.create({
   footerLink: {
     color: COLORS.primary,
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  categoryOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  categoryOptionSelected: {
+    backgroundColor: COLORS.primary + '10',
+  },
+  categoryOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  categoryOptionText: {
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  categoryOptionTextSelected: {
+    color: COLORS.primary,
     fontWeight: 'bold',
   },
 });

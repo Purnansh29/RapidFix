@@ -15,6 +15,7 @@ interface WorkerStats {
   completedJobs: number;
   isOnline: boolean;
   isAvailable: boolean;
+  isVerified: boolean;
   category: string;
   experience: number;
 }
@@ -92,6 +93,7 @@ export default function WorkerDashboard() {
           completedJobs: response.data.profile.completedJobs,
           isOnline: response.data.profile.isOnline,
           isAvailable: response.data.profile.isAvailable,
+          isVerified: response.data.profile.isVerified || false,
           category: response.data.profile.category,
           experience: response.data.profile.experience,
         });
@@ -106,6 +108,14 @@ export default function WorkerDashboard() {
 
   const handleToggleStatus = async (field: 'isOnline' | 'isAvailable') => {
     if (!profile) return;
+
+    if (!profile.isVerified) {
+      Alert.alert(
+        'Account Pending Approval',
+        'Your profile is under review by the RapidFix Admin team. You will be able to go online and accept jobs once verified.'
+      );
+      return;
+    }
 
     try {
       setUpdating(true);
@@ -146,7 +156,12 @@ export default function WorkerDashboard() {
         {/* Header with Title and Logout */}
         <View style={styles.topBar}>
           <View>
-            <Text style={styles.greeting}>Hello, {user?.name || 'Worker'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.greeting}>Hello, {user?.name || 'Worker'}</Text>
+              {profile?.isVerified && (
+                <Ionicons name="checkmark-circle" size={18} color={COLORS.success} style={{ marginLeft: 6 }} />
+              )}
+            </View>
             <Text style={styles.subtext}>
               {profile ? `${profile.category} • ${profile.experience} yrs experience` : 'Service Provider'}
             </Text>
@@ -156,8 +171,26 @@ export default function WorkerDashboard() {
           </TouchableOpacity>
         </View>
 
+        {/* Verification Status Card */}
+        {!profile?.isVerified ? (
+          <View style={styles.pendingCard}>
+            <View style={styles.pendingHeader}>
+              <Ionicons name="time-outline" size={24} color="#FF9900" />
+              <Text style={styles.pendingTitle}>Account Pending Approval</Text>
+            </View>
+            <Text style={styles.pendingDesc}>
+              Your account is currently under review by our Admin team. Once approved, you can turn on Work Mode and start receiving customer requests!
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.verifiedCard}>
+            <Ionicons name="shield-checkmark" size={20} color={COLORS.success} />
+            <Text style={styles.verifiedText}>Approved & Verified Professional</Text>
+          </View>
+        )}
+
         {/* Toggles Card */}
-        <View style={styles.togglesCard}>
+        <View style={[styles.togglesCard, !profile?.isVerified && { opacity: 0.65 }]}>
           {/* Online/Offline Toggle */}
           <View style={styles.toggleRow}>
             <View style={styles.toggleTextContainer}>
@@ -172,7 +205,7 @@ export default function WorkerDashboard() {
               thumbColor={COLORS.surface}
               onValueChange={() => handleToggleStatus('isOnline')}
               value={profile?.isOnline || false}
-              disabled={updating}
+              disabled={updating || !profile?.isVerified}
             />
           </View>
 
@@ -193,7 +226,7 @@ export default function WorkerDashboard() {
               thumbColor={COLORS.surface}
               onValueChange={() => handleToggleStatus('isAvailable')}
               value={profile?.isAvailable || false}
-              disabled={updating || !profile?.isOnline} // cannot be available if offline
+              disabled={updating || !profile?.isOnline || !profile?.isVerified}
             />
           </View>
         </View>
@@ -252,6 +285,47 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: 8,
     elevation: 1,
+  },
+  pendingCard: {
+    backgroundColor: '#FFF8E1',
+    borderWidth: 1,
+    borderColor: '#FFE082',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: SIZES.lg,
+  },
+  pendingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  pendingTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#B78103',
+    marginLeft: 8,
+  },
+  pendingDesc: {
+    fontSize: 13,
+    color: '#7A5200',
+    lineHeight: 18,
+  },
+  verifiedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: SIZES.lg,
+  },
+  verifiedText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2E7D32',
+    marginLeft: 8,
   },
   togglesCard: {
     backgroundColor: COLORS.surface,
