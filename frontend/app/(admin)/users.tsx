@@ -870,6 +870,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
   },
+  approveBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   confirmApproveBtn: {
     backgroundColor: '#10B981',
   },

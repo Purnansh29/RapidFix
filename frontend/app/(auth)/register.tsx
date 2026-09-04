@@ -9,7 +9,9 @@ import {
   Alert, 
   ScrollView,
   Modal,
-  FlatList 
+  FlatList,
+  KeyboardAvoidingView,
+  Platform 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -100,142 +102,159 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Join RapidFix today</Text>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
+        >
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>Join RapidFix today</Text>
 
-        <View style={styles.roleSelector}>
-          <TouchableOpacity 
-            style={[styles.roleButton, role === 'customer' && styles.roleButtonActive]}
-            onPress={() => setRole('customer')}
-          >
-            <Ionicons name="person" size={20} color={role === 'customer' ? COLORS.surface : COLORS.textLight} />
-            <Text style={[styles.roleText, role === 'customer' && styles.roleTextActive]}>Customer</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.roleButton, role === 'worker' && styles.roleButtonActive]}
-            onPress={() => setRole('worker')}
-          >
-            <Ionicons name="briefcase" size={20} color={role === 'worker' ? COLORS.surface : COLORS.textLight} />
-            <Text style={[styles.roleText, role === 'worker' && styles.roleTextActive]}>Professional</Text>
-          </TouchableOpacity>
-        </View>
-
-        {role === 'worker' && (
-          <View style={styles.approvalNotice}>
-            <Ionicons name="shield-checkmark" size={20} color="#0066FF" style={{ marginRight: 8 }} />
-            <Text style={styles.approvalNoticeText}>
-              Professional accounts require one-time Admin verification before going live.
-            </Text>
+          <View style={styles.roleSelector}>
+            <TouchableOpacity 
+              style={[styles.roleButton, role === 'customer' && styles.roleButtonActive]}
+              onPress={() => setRole('customer')}
+            >
+              <Ionicons name="person" size={20} color={role === 'customer' ? COLORS.surface : COLORS.textLight} />
+              <Text style={[styles.roleText, role === 'customer' && styles.roleTextActive]}>Customer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.roleButton, role === 'worker' && styles.roleButtonActive]}
+              onPress={() => setRole('worker')}
+            >
+              <Ionicons name="briefcase" size={20} color={role === 'worker' ? COLORS.surface : COLORS.textLight} />
+              <Text style={[styles.roleText, role === 'worker' && styles.roleTextActive]}>Professional</Text>
+            </TouchableOpacity>
           </View>
-        )}
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Full Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="John Doe"
-            value={name}
-            onChangeText={setName}
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="john@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Phone Number</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="+91 9876543210"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Create a password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-        </View>
-
-        {role === 'worker' && (
-          <>
-            {/* Service Category Dropdown Trigger */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Service Category</Text>
-              <TouchableOpacity
-                style={styles.dropdownTrigger}
-                onPress={() => setShowCategoryModal(true)}
-              >
-                <Text style={category ? styles.dropdownSelectedText : styles.dropdownPlaceholderText}>
-                  {category ? selectedCategoryDisplay : 'Select your profession / service'}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
-              </TouchableOpacity>
+          {role === 'worker' && (
+            <View style={styles.approvalNotice}>
+              <Ionicons name="shield-checkmark" size={20} color="#0066FF" style={{ marginRight: 8 }} />
+              <Text style={styles.approvalNoticeText}>
+                Professional accounts require one-time Admin verification before going live.
+              </Text>
             </View>
+          )}
 
-            {category === 'Other' && (
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="John Doe"
+              placeholderTextColor={COLORS.textLight}
+              value={name}
+              onChangeText={setName}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="john@example.com"
+              placeholderTextColor={COLORS.textLight}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Phone Number</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="+91 9876543210"
+              placeholderTextColor={COLORS.textLight}
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Create a password"
+              placeholderTextColor={COLORS.textLight}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
+
+          {role === 'worker' && (
+            <>
+              {/* Service Category Dropdown Trigger */}
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Specify Your Profession</Text>
+                <Text style={styles.label}>Service Category</Text>
+                <TouchableOpacity
+                  style={styles.dropdownTrigger}
+                  onPress={() => setShowCategoryModal(true)}
+                >
+                  <Text style={category ? styles.dropdownSelectedText : styles.dropdownPlaceholderText}>
+                    {category ? selectedCategoryDisplay : 'Select your profession / service'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
+                </TouchableOpacity>
+              </View>
+
+              {category === 'Other' && (
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Specify Your Profession</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. Locksmith, Roofer"
+                    placeholderTextColor={COLORS.textLight}
+                    value={customCategory}
+                    onChangeText={setCustomCategory}
+                  />
+                </View>
+              )}
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Years of Experience</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="e.g. Locksmith, Roofer"
-                  value={customCategory}
-                  onChangeText={setCustomCategory}
+                  placeholder="e.g. 5"
+                  placeholderTextColor={COLORS.textLight}
+                  value={experience}
+                  onChangeText={setExperience}
+                  keyboardType="numeric"
                 />
               </View>
-            )}
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Years of Experience</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 5"
-                value={experience}
-                onChangeText={setExperience}
-                keyboardType="numeric"
-              />
-            </View>
-          </>
-        )}
-
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={handleRegister} 
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={COLORS.surface} />
-          ) : (
-            <Text style={styles.buttonText}>
-              {role === 'worker' ? 'Submit for Approval' : 'Register'}
-            </Text>
+            </>
           )}
-        </TouchableOpacity>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-            <Text style={styles.footerLink}>Login here</Text>
+          <TouchableOpacity 
+            style={styles.button} 
+            onPress={handleRegister} 
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color={COLORS.surface} />
+            ) : (
+              <Text style={styles.buttonText}>
+                {role === 'worker' ? 'Submit for Approval' : 'Register'}
+              </Text>
+            )}
           </TouchableOpacity>
-        </View>
-      </ScrollView>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+              <Text style={styles.footerLink}>Login here</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Category Dropdown Selection Modal */}
       <Modal
@@ -299,10 +318,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  keyboardAvoid: {
+    flex: 1,
+  },
   content: {
     flexGrow: 1,
     padding: SIZES.lg,
-    justifyContent: 'center',
+    paddingTop: SIZES.lg,
+    paddingBottom: 120,
   },
   title: {
     fontSize: SIZES.xl,
