@@ -37,26 +37,26 @@
 <table>
   <tr>
     <td align="center">
-      <img src="./assets/screenshots/screenshot_1.png" width="220" alt="Customer Home" />
+      <img src="./assets/screenshots/screenshot_1.png" width="220" alt="Customer Dashboard" />
       <br/><b>🏠 Customer Dashboard</b>
-      <br/><sub>Browse all service categories</sub>
+      <br/><sub>Browse categories & emergency booking</sub>
     </td>
     <td align="center">
-      <img src="./assets/screenshots/screenshot_3.png" width="220" alt="Live Map" />
-      <br/><b>🗺️ Live Pro Map</b>
-      <br/><sub>Real-time GPS tracking of pros</sub>
+      <img src="./assets/screenshots/screenshot_2.png" width="220" alt="Live Pro Map & Booking" />
+      <br/><b>🗺️ Live Pro Map & Booking</b>
+      <br/><sub>Select verified pros & book service</sub>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <img src="./assets/screenshots/screenshot_2.png" width="220" alt="Admin Dashboard" />
-      <br/><b>📊 Admin Overview</b>
-      <br/><sub>Platform metrics & revenue</sub>
+      <img src="./assets/screenshots/screenshot_3.png" width="220" alt="GPS Tracking" />
+      <br/><b>📍 Real-Time GPS Tracking</b>
+      <br/><sub>Live location & heading tracking</sub>
     </td>
     <td align="center">
-      <img src="./assets/screenshots/screenshot_4.png" width="220" alt="User Directory" />
-      <br/><b>👥 Admin User Directory</b>
-      <br/><sub>Manage professionals & customers</sub>
+      <img src="./assets/screenshots/screenshot_4.png" width="220" alt="Admin Overview" />
+      <br/><b>📊 Admin Overview</b>
+      <br/><sub>Platform metrics, jobs & revenue</sub>
     </td>
   </tr>
 </table>
