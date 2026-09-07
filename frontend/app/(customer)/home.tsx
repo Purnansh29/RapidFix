@@ -1,14 +1,34 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, SIZES, SHADOWS } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
+import EditProfileModal from '../../components/EditProfileModal';
 
 export default function CustomerHome() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  const [showEditProfile, setShowEditProfile] = useState(false);
+
+  const handleLogoutConfirm = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out of your RapidFix account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
+  };
 
   const services = [
     { id: 1, name: 'Plumber', icon: 'water', color: '#2563EB', bg: '#EFF6FF' },
@@ -29,17 +49,28 @@ export default function CustomerHome() {
         {/* Top Header Bar */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <View style={styles.userAvatar}>
-              <Text style={styles.userAvatarText}>
-                {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-              </Text>
-            </View>
-            <View>
-              <Text style={styles.greetingTitle}>Hello, {user?.name || 'Customer'}</Text>
-              <Text style={styles.greetingSubtitle}>Find reliable experts near you</Text>
-            </View>
+            <TouchableOpacity 
+              style={styles.userAvatar} 
+              onPress={() => setShowEditProfile(true)}
+              activeOpacity={0.8}
+            >
+              {user?.profileImage ? (
+                <Image source={{ uri: user.profileImage }} style={styles.userAvatarImage} />
+              ) : (
+                <Text style={styles.userAvatarText}>
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                </Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowEditProfile(true)} activeOpacity={0.7}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.greetingTitle}>Hello, {user?.name || 'Customer'}</Text>
+                <Ionicons name="pencil-outline" size={14} color={COLORS.primary} style={{ marginLeft: 6 }} />
+              </View>
+              <Text style={styles.greetingSubtitle}>Tap to edit profile • Find reliable experts</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.logoutBtn} onPress={() => logout()}>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogoutConfirm}>
             <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
           </TouchableOpacity>
         </View>
@@ -131,6 +162,12 @@ export default function CustomerHome() {
         </View>
 
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        visible={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -164,6 +201,12 @@ const styles = StyleSheet.create({
     marginRight: 12,
     borderWidth: 1,
     borderColor: '#DBEAFE',
+    overflow: 'hidden',
+  },
+  userAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 22,
   },
   userAvatarText: {
     fontSize: 18,

@@ -71,8 +71,9 @@ export default function WorkerRequests() {
           isEmergency: data.isEmergency,
           status: 'Pending',
           customerId: {
-            name: data.customer.name,
-            phone: data.customer.phone,
+            _id: data.customer?._id || data.customerId || '',
+            name: data.customer?.name || 'Customer',
+            phone: data.customer?.phone || '',
           },
           createdAt: data.createdAt || new Date().toISOString(),
         };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Switch, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Switch, ScrollView, ActivityIndicator, Alert, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS, SIZES } from '../../constants/theme';
@@ -7,7 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import * as Location from 'expo-location';
 import { socketService } from '../../services/socket';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import EditProfileModal from '../../components/EditProfileModal';
 
 interface WorkerStats {
   rating: number;
@@ -22,9 +23,11 @@ interface WorkerStats {
 
 export default function WorkerDashboard() {
   const { user, logout } = useAuthStore();
+  const router = useRouter();
   const [profile, setProfile] = useState<WorkerStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
 
   useFocusEffect(
@@ -161,6 +164,24 @@ export default function WorkerDashboard() {
     }
   };
 
+  const handleLogoutConfirm = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out of your RapidFix account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -176,11 +197,19 @@ export default function WorkerDashboard() {
         
         {/* Header with Title and Logout */}
         <View style={styles.topBar}>
-          <View style={styles.headerLeft}>
+          <TouchableOpacity 
+            style={styles.headerLeft} 
+            onPress={() => setShowEditModal(true)}
+            activeOpacity={0.8}
+          >
             <View style={styles.workerAvatar}>
-              <Text style={styles.workerAvatarText}>
-                {user?.name ? user.name.charAt(0).toUpperCase() : 'W'}
-              </Text>
+              {user?.profileImage ? (
+                <Image source={{ uri: user.profileImage }} style={styles.workerAvatarImage} />
+              ) : (
+                <Text style={styles.workerAvatarText}>
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'W'}
+                </Text>
+              )}
             </View>
             <View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -188,13 +217,14 @@ export default function WorkerDashboard() {
                 {profile?.isVerified && (
                   <Ionicons name="checkmark-circle" size={17} color={COLORS.success} style={{ marginLeft: 5 }} />
                 )}
+                <Ionicons name="pencil-outline" size={14} color={COLORS.primary} style={{ marginLeft: 6 }} />
               </View>
               <Text style={styles.subtext}>
-                {profile ? `${profile.category} • ${profile.experience} yrs exp` : 'Service Provider'}
+                {profile ? `${profile.category} • ${profile.experience} yrs exp` : 'Tap to edit profile'}
               </Text>
             </View>
-          </View>
-          <TouchableOpacity style={styles.logoutBtn} onPress={() => logout()}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogoutConfirm} activeOpacity={0.8}>
             <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
           </TouchableOpacity>
         </View>
@@ -280,6 +310,17 @@ export default function WorkerDashboard() {
           <Text style={styles.emptyStateText}>No active jobs at the moment.</Text>
         </View>
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onUpdated={fetchWorkerProfile}
+        workerDetails={{
+          category: profile?.category,
+          experience: profile?.experience,
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -312,6 +353,12 @@ const styles = StyleSheet.create({
     marginRight: 12,
     borderWidth: 1,
     borderColor: '#DBEAFE',
+    overflow: 'hidden',
+  },
+  workerAvatarImage: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
   },
   workerAvatarText: {
     fontSize: 18,

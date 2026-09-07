@@ -16,19 +16,31 @@ export default function RootLayout() {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
+    const currentGroup = segments[0];
+    const inAuthGroup = currentGroup === '(auth)';
 
     if (!user && !inAuthGroup) {
       // Redirect to the sign-in page.
       router.replace('/(auth)/login');
-    } else if (user && inAuthGroup) {
-      // Redirect away from the sign-in page to the correct dashboard based on role.
-      if (user.role === 'customer') {
-        router.replace('/(customer)/home');
-      } else if (user.role === 'worker') {
-        router.replace('/(worker)/dashboard');
-      } else if (user.role === 'admin') {
-        router.replace('/(admin)/dashboard');
+    } else if (user) {
+      // If user is inside (auth) or at root index, send to their role dashboard
+      if (inAuthGroup || !currentGroup || currentGroup === 'index') {
+        if (user.role === 'customer') {
+          router.replace('/(customer)/home');
+        } else if (user.role === 'worker') {
+          router.replace('/(worker)/dashboard');
+        } else if (user.role === 'admin') {
+          router.replace('/(admin)/dashboard');
+        }
+      } else {
+        // Enforce role route security (workers cannot access customer tabs, etc.)
+        if (user.role === 'customer' && (currentGroup === '(worker)' || currentGroup === '(admin)')) {
+          router.replace('/(customer)/home');
+        } else if (user.role === 'worker' && (currentGroup === '(customer)' || currentGroup === '(admin)')) {
+          router.replace('/(worker)/dashboard');
+        } else if (user.role === 'admin' && (currentGroup === '(customer)' || currentGroup === '(worker)')) {
+          router.replace('/(admin)/dashboard');
+        }
       }
     }
   }, [user, isLoading, segments]);

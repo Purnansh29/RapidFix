@@ -3,9 +3,12 @@ import * as SecureStore from 'expo-secure-store';
 
 interface User {
   _id: string;
+  id?: string;
   name: string;
   email: string;
   role: 'customer' | 'worker' | 'admin';
+  phone?: string;
+  profileImage?: string;
 }
 
 interface AuthState {
@@ -14,10 +17,11 @@ interface AuthState {
   isLoading: boolean;
   login: (userData: User, token: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (updatedFields: Partial<User>) => Promise<void>;
   restoreSession: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   isLoading: true,
@@ -32,6 +36,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     await SecureStore.deleteItemAsync('userToken');
     await SecureStore.deleteItemAsync('userData');
     set({ user: null, token: null, isLoading: false });
+  },
+
+  updateUser: async (updatedFields) => {
+    const currentUser = get().user;
+    if (!currentUser) return;
+    const updatedUser = { ...currentUser, ...updatedFields };
+    await SecureStore.setItemAsync('userData', JSON.stringify(updatedUser));
+    set({ user: updatedUser });
   },
 
   restoreSession: async () => {

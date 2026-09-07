@@ -58,7 +58,9 @@ exports.register = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.role,
+        profileImage: user.profileImage || '',
       }
     });
   } catch (error) {
@@ -93,7 +95,9 @@ exports.login = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.role,
+        profileImage: user.profileImage || '',
       }
     });
   } catch (error) {
@@ -120,5 +124,62 @@ exports.getProfile = async (req, res) => {
   } catch (error) {
     console.error('Profile Error:', error);
     res.status(500).json({ success: false, message: 'Server error fetching profile' });
+  }
+};
+
+// @desc    Update user profile (Name, Phone, Profile Image, and Worker details)
+// @route   PUT /api/auth/profile
+// @access  Private (All authenticated roles)
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, phone, profileImage, category, experience, description } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (name) user.name = name.trim();
+    if (phone) {
+      const existingPhone = await User.findOne({ phone: phone.trim(), _id: { $ne: user._id } });
+      if (existingPhone) {
+        return res.status(400).json({ success: false, message: 'Phone number is already in use by another account' });
+      }
+      user.phone = phone.trim();
+    }
+    if (profileImage !== undefined) {
+      user.profileImage = profileImage;
+    }
+
+    await user.save();
+
+    let workerProfileData = null;
+    if (user.role === 'worker') {
+      let workerProfile = await WorkerProfile.findOne({ userId: user._id });
+      if (workerProfile) {
+        if (category) workerProfile.category = category;
+        if (experience !== undefined && experience !== '') workerProfile.experience = Number(experience);
+        if (description !== undefined) workerProfile.description = description;
+        await workerProfile.save();
+        workerProfileData = workerProfile;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        profileImage: user.profileImage || '',
+      },
+      workerProfile: workerProfileData,
+    });
+  } catch (error) {
+    console.error('Update Profile Error:', error);
+    res.status(500).json({ success: false, message: 'Server error updating profile' });
   }
 };

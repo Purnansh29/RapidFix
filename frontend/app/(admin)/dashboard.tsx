@@ -1,17 +1,38 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import { COLORS } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
+import EditProfileModal from '../../components/EditProfileModal';
 
 export default function AdminDashboard() {
-  const { logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  const handleLogoutConfirm = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out of your RapidFix Admin account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
+  };
 
   const fetchStats = async () => {
     try {
@@ -57,16 +78,27 @@ export default function AdminDashboard() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
+        <TouchableOpacity 
+          style={styles.headerLeft} 
+          onPress={() => setShowEditModal(true)}
+          activeOpacity={0.8}
+        >
           <View style={styles.logoBox}>
-            <Ionicons name="flash" size={20} color={COLORS.primary} />
+            {user?.profileImage ? (
+              <Image source={{ uri: user.profileImage }} style={styles.adminAvatarImage} />
+            ) : (
+              <Ionicons name="shield-checkmark" size={20} color={COLORS.primary} />
+            )}
           </View>
           <View>
-            <Text style={styles.headerTitle}>RapidFix Admin</Text>
-            <Text style={styles.headerSubtitle}>Platform Overview</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.headerTitle}>{user?.name || 'RapidFix Admin'}</Text>
+              <Ionicons name="pencil-outline" size={13} color={COLORS.primary} style={{ marginLeft: 6 }} />
+            </View>
+            <Text style={styles.headerSubtitle}>Tap to edit profile • Platform Overview</Text>
           </View>
-        </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogoutConfirm} activeOpacity={0.8}>
           <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
         </TouchableOpacity>
       </View>
@@ -140,6 +172,12 @@ export default function AdminDashboard() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -157,6 +195,12 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 12, backgroundColor: '#EFF6FF',
     justifyContent: 'center', alignItems: 'center', marginRight: 10,
     borderWidth: 1, borderColor: '#DBEAFE',
+    overflow: 'hidden',
+  },
+  adminAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
   },
   headerTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
   headerSubtitle: { fontSize: 12, color: COLORS.textLight },

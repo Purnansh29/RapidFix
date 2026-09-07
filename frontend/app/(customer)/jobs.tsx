@@ -81,7 +81,7 @@ export default function CustomerJobs() {
         {
           text: 'Confirm Cancel',
           style: 'destructive',
-          onPress: async (reason) => {
+          onPress: async (reason?: string) => {
             try {
               const response = await api.put(`/jobs/${jobId}/cancel`, { reason });
               if (response.data?.success) {
