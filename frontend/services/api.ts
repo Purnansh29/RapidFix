@@ -29,12 +29,8 @@ const getBaseUrl = () => {
     return process.env.EXPO_PUBLIC_API_URL;
   }
 
-  // 5. Fallback for Android emulator
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5000/api';
-  }
-
-  return 'http://localhost:5000/api';
+  // 5. Fallback from ENV
+  return process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
 };
 
 const API_URL = getBaseUrl();

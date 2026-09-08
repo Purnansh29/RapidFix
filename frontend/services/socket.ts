@@ -29,12 +29,10 @@ const getBaseUrl = () => {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/api$/, '');
   }
 
-  // 5. Fallback for Android emulator
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5000';
-  }
-
-  return 'http://localhost:5000';
+  // 5. Fallback from ENV
+  return process.env.EXPO_PUBLIC_API_URL
+    ? process.env.EXPO_PUBLIC_API_URL.replace(/\/api$/, '')
+    : 'http://localhost:5000';
 };
 
 const SOCKET_URL = getBaseUrl();

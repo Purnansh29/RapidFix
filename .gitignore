@@ -1,8 +1,21 @@
+# Dependencies
 node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Environment Variables & Secrets (NEVER PUSH TO GITHUB)
 .env
+.env*
+*.env
+backend/.env
+frontend/.env
+backend/.env*
+frontend/.env*
+
+# Build artifacts
 .expo/
 dist/
 coverage/
 *.log
-backend/node_modules/
-frontend/node_modules/
+.DS_Store
+Thumbs.db
