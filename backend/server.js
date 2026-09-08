@@ -40,9 +40,18 @@ app.use('/api/reviews', require('./routes/reviewRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
 
+// Health Check & Root Ping
+app.get('/', (req, res) => {
+  res.status(200).json({ success: true, message: 'RapidFix Enterprise API is live and running.' });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy', uptime: process.uptime(), timestamp: new Date() });
+});
+
 // Database Connection
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/rapidfix';
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/rapidfix';
 
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('MongoDB Connected successfully'))
