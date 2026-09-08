@@ -4,29 +4,32 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
 const getBaseUrl = () => {
-  // If running on web, always connect to localhost
-  if (Platform.OS === 'web') {
-    return 'http://localhost:5000';
-  }
-
-  // If deployed production cloud URL (HTTPS) is configured, use it
+  // 1. If deployed production cloud URL (HTTPS) is configured, use it
   if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.startsWith('https://')) {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/api$/, '');
   }
 
-  // Auto-detect dynamic host IP from Expo Metro bundler on physical device
-  const hostUri = Constants.expoConfig?.hostUri;
+  // 2. If running on web, dynamically match host domain
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      return `http://${window.location.hostname}:5000`;
+    }
+    return 'http://localhost:5000';
+  }
+
+  // 3. Auto-detect dynamic host IP from Expo Metro bundler on physical device
+  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri;
   if (hostUri) {
     const ip = hostUri.split(':')[0];
     return `http://${ip}:5000`;
   }
 
-  // If env is defined
+  // 4. If env is defined
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/api$/, '');
   }
 
-  // Fallback for Android emulator
+  // 5. Fallback for Android emulator
   if (Platform.OS === 'android') {
     return 'http://10.0.2.2:5000';
   }

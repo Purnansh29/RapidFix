@@ -10,7 +10,7 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import LeafletMap from '../../components/LeafletMap';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
 import api from '../../services/api';
@@ -178,40 +178,41 @@ export default function LiveOperationsCenter() {
 
       {/* Map View */}
       <View style={styles.mapWrapper}>
-        <MapView
+        <LeafletMap
           style={styles.map}
-          initialRegion={{
-            latitude: centerLat,
-            longitude: centerLng,
-            latitudeDelta: 0.12,
-            longitudeDelta: 0.12,
+          center={{ latitude: centerLat, longitude: centerLng }}
+          zoom={12}
+          markers={[
+            ...filteredWorkers.map(worker => ({
+              id: `worker-${worker.id}`,
+              latitude: worker.latitude,
+              longitude: worker.longitude,
+              color: worker.markerColor,
+              title: `${worker.name} (${worker.operationalStatus})`,
+              description: `${worker.category} • ⭐ ${worker.rating}`,
+            })),
+            ...filteredJobs.map(job => ({
+              id: `job-${job.id}`,
+              latitude: job.latitude,
+              longitude: job.longitude,
+              color: job.markerColor,
+              title: `${job.isEmergency ? '🚨 EMERGENCY: ' : ''}${job.category} Job`,
+              description: `Status: ${job.operationalStatus} • ₹${job.budget}`,
+            })),
+          ]}
+          onMarkerPress={(markerId) => {
+            if (markerId.startsWith('worker-')) {
+              const id = markerId.replace('worker-', '');
+              const worker = filteredWorkers.find(w => w.id === id);
+              if (worker) setSelectedEntity(worker);
+            } else if (markerId.startsWith('job-')) {
+              const id = markerId.replace('job-', '');
+              const job = filteredJobs.find(j => j.id === id);
+              if (job) setSelectedEntity(job);
+            }
           }}
-          showsCompass={true}
-        >
-          {/* Worker Markers */}
-          {filteredWorkers.map(worker => (
-            <Marker
-              key={`worker-${worker.id}`}
-              coordinate={{ latitude: worker.latitude, longitude: worker.longitude }}
-              pinColor={worker.markerColor}
-              title={`${worker.name} (${worker.operationalStatus})`}
-              description={`${worker.category} • ⭐ ${worker.rating}`}
-              onPress={() => setSelectedEntity(worker)}
-            />
-          ))}
-
-          {/* Job Markers */}
-          {filteredJobs.map(job => (
-            <Marker
-              key={`job-${job.id}`}
-              coordinate={{ latitude: job.latitude, longitude: job.longitude }}
-              pinColor={job.markerColor}
-              title={`${job.isEmergency ? '🚨 EMERGENCY: ' : ''}${job.category} Job`}
-              description={`Status: ${job.operationalStatus} • ₹${job.budget}`}
-              onPress={() => setSelectedEntity(job)}
-            />
-          ))}
-        </MapView>
+          onMapPress={() => setSelectedEntity(null)}
+        />
       </View>
 
       {/* Detail Bottom Sheet Modal */}

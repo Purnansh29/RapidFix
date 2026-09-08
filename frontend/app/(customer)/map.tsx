@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Image, FlatList } from 'react-native';
-import MapView, { Marker, Callout } from 'react-native-maps';
+import LeafletMap from '../../components/LeafletMap';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS, SIZES } from '../../constants/theme';
@@ -246,36 +246,27 @@ export default function CustomerMap() {
       </View>
 
       {currentCoords && (
-        <MapView
+        <LeafletMap
           style={styles.map}
-          initialRegion={{
-            latitude: currentCoords.latitude,
-            longitude: currentCoords.longitude,
-            latitudeDelta: 0.08,
-            longitudeDelta: 0.08,
+          center={currentCoords}
+          zoom={13}
+          userLocation={currentCoords}
+          markers={workers.map((worker) => ({
+            id: worker._id,
+            latitude: worker.location[1],
+            longitude: worker.location[0],
+            title: worker.name,
+            description: `${worker.category} • ${worker.experience} yrs exp`,
+            color: getMarkerColor(worker.category),
+          }))}
+          onMarkerPress={(workerId) => {
+            const worker = workers.find((w) => w._id === workerId);
+            if (worker) {
+              setSelectedWorker(worker);
+            }
           }}
-          showsUserLocation={true}
-          showsMyLocationButton={true}
-          onPress={() => setSelectedWorker(null)}
-        >
-          {/* Nearby Worker Markers */}
-          {workers.map((worker) => (
-            <Marker
-              key={worker._id}
-              coordinate={{
-                latitude: worker.location[1],
-                longitude: worker.location[0],
-              }}
-              title={worker.name}
-              description={`${worker.category} • ${worker.experience} yrs exp`}
-              pinColor={getMarkerColor(worker.category)}
-              onPress={(e) => {
-                e.stopPropagation();
-                setSelectedWorker(worker);
-              }}
-            />
-          ))}
-        </MapView>
+          onMapPress={() => setSelectedWorker(null)}
+        />
       )}
 
       {/* Selected Worker Details Card */}
