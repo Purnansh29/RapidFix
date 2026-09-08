@@ -449,13 +449,52 @@ exports.getFinancialReports = async (req, res) => {
     const pendingCommission = Math.round(totalRevenue * 0.20);
     const refunds = await Job.countDocuments({ status: 'Cancelled' }) * 40;
 
-    // Monthly Graph breakdown (last 4 weeks)
-    const revenueGraph = [
-      { period: 'Week 1', revenue: Math.round(weeklyRevenue * 0.7), commission: Math.round(weeklyRevenue * 0.7 * 0.1) },
-      { period: 'Week 2', revenue: Math.round(weeklyRevenue * 0.85), commission: Math.round(weeklyRevenue * 0.85 * 0.1) },
-      { period: 'Week 3', revenue: Math.round(weeklyRevenue * 1.1), commission: Math.round(weeklyRevenue * 1.1 * 0.1) },
-      { period: 'Week 4', revenue: Math.round(weeklyRevenue), commission: Math.round(weeklyRevenue * 0.1) },
-    ];
+    // 1. Live 7-Day Daily Revenue & Commission
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dailyGraph = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      const nextD = new Date(d);
+      nextD.setDate(nextD.getDate() + 1);
+
+      const dayJobs = completedJobs.filter(j => {
+        const jd = j.completedAt || j.updatedAt;
+        return jd >= d && jd < nextD;
+      });
+
+      const dayVolume = dayJobs.reduce((sum, j) => sum + (j.budget || 0), 0);
+      const dayCommission = Math.round(dayVolume * 0.10);
+
+      dailyGraph.push({
+        period: i === 0 ? 'Today' : dayNames[d.getDay()],
+        date: `${d.getDate()}/${d.getMonth() + 1}`,
+        revenue: dayVolume,
+        commission: dayCommission,
+      });
+    }
+
+    // 2. Live 4-Week Breakdown
+    const weeklyGraph = [];
+    for (let w = 3; w >= 0; w--) {
+      const startW = new Date(Date.now() - (w + 1) * 7 * 24 * 60 * 60 * 1000);
+      const endW = new Date(Date.now() - w * 7 * 24 * 60 * 60 * 1000);
+
+      const weekJobs = completedJobs.filter(j => {
+        const jd = j.completedAt || j.updatedAt;
+        return jd >= startW && jd < endW;
+      });
+
+      const weekVolume = weekJobs.reduce((sum, j) => sum + (j.budget || 0), 0);
+      const weekCommission = Math.round(weekVolume * 0.10);
+
+      weeklyGraph.push({
+        period: w === 0 ? 'This Wk' : `Wk ${4 - w}`,
+        revenue: weekVolume,
+        commission: weekCommission,
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -470,7 +509,9 @@ exports.getFinancialReports = async (req, res) => {
           pendingCommission,
           refunds,
         },
-        revenueGraph,
+        revenueGraph: dailyGraph,
+        dailyGraph,
+        weeklyGraph,
         invoices,
       }
     });
