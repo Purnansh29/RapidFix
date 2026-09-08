@@ -18,13 +18,18 @@ export default function RootLayout() {
 
     const currentGroup = segments[0];
     const inAuthGroup = currentGroup === '(auth)';
+    const isAtSplash = !currentGroup || currentGroup === 'index';
+
+    // Allow index.tsx to display its splash animation
+    if (isAtSplash) {
+      return;
+    }
 
     if (!user && !inAuthGroup) {
-      // Redirect to the sign-in page.
+      // Redirect to the sign-in page if not on login or splash.
       router.replace('/(auth)/login');
     } else if (user) {
-      // If user is inside (auth) or at root index, send to their role dashboard
-      if (inAuthGroup || !currentGroup || currentGroup === 'index') {
+      if (inAuthGroup) {
         if (user.role === 'customer') {
           router.replace('/(customer)/home');
         } else if (user.role === 'worker') {
@@ -45,18 +50,10 @@ export default function RootLayout() {
     }
   }, [user, isLoading, segments]);
 
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
-  }
-
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      {/* We will add (customer), (worker), (admin) groups later */}
     </Stack>
   );
 }
