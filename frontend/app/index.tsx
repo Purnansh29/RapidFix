@@ -7,13 +7,14 @@ import {
   Animated, 
   Dimensions, 
   StatusBar, 
-  Platform 
+  Platform,
+  Easing 
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
-import { COLORS } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
+const CIRCLE_SIZE = Math.min(width * 0.68, 270);
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -21,22 +22,23 @@ export default function SplashScreen() {
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.92)).current;
+  const scaleAnim = useRef(new Animated.Value(0.88)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // 1. Entrance animation (Fade in & scale up)
+    // 1. Entrance animation (Fade in & spring scale)
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 800,
+        duration: 700,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
-        tension: 25,
-        friction: 7,
+        tension: 28,
+        friction: 6,
         useNativeDriver: true,
       }),
     ]).start();
@@ -45,36 +47,50 @@ export default function SplashScreen() {
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.03,
-          duration: 1200,
+          toValue: 1.035,
+          duration: 1300,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 1200,
+          duration: 1300,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ])
     );
     pulse.start();
 
-    // 3. Smooth progress bar animation
+    // 3. Smooth slow rotating outer ring
+    const rotate = Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 9000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    rotate.start();
+
+    // 4. Progress bar fill
     Animated.timing(progressAnim, {
       toValue: 1,
       duration: 2500,
+      easing: Easing.out(Easing.quad),
       useNativeDriver: false,
     }).start();
 
-    // 4. Timer to transition to the next screen
+    // 5. Transition to next screen
     const timer = setTimeout(() => {
-      // Fade out smoothly
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 400,
         useNativeDriver: true,
       }).start(() => {
         pulse.stop();
-        // Check session and navigate
+        rotate.stop();
+
         if (user) {
           if (user.role === 'customer') {
             router.replace('/(customer)/home');
@@ -94,8 +110,14 @@ export default function SplashScreen() {
     return () => {
       clearTimeout(timer);
       pulse.stop();
+      rotate.stop();
     };
   }, [user, isLoading]);
+
+  const spin = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
@@ -104,9 +126,9 @@ export default function SplashScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#EAF4FE" />
+      <StatusBar barStyle="dark-content" backgroundColor="#EDF6FF" />
       
-      {/* Background Decorative Rings */}
+      {/* Background Decorative Soft Radiance */}
       <View style={styles.outerGlowCircle} />
       <View style={styles.innerGlowCircle} />
 
@@ -121,28 +143,44 @@ export default function SplashScreen() {
           }
         ]}
       >
-        {/* Animated Brand Graphic */}
-        <View style={styles.imageContainer}>
-          <Image 
-            source={require('../assets/splash_intro.png')}
-            style={styles.splashImage}
-            resizeMode="contain"
+        {/* Round Logo Area */}
+        <View style={styles.logoContainer}>
+          {/* Animated Rotating Outer Orbit Ring */}
+          <Animated.View 
+            style={[
+              styles.outerOrbitRing, 
+              { transform: [{ rotate: spin }] }
+            ]} 
           />
+
+          {/* Perfect Round Badge Container */}
+          <View style={styles.roundBadge}>
+            <Image 
+              source={require('../assets/splash_intro.png')}
+              style={styles.roundImage}
+              resizeMode="cover"
+            />
+          </View>
         </View>
 
-        {/* Loading Indicator Section */}
+        {/* Brand Text */}
+        <View style={styles.brandSection}>
+          <Text style={styles.brandTitle}>RapidFix</Text>
+          <Text style={styles.brandSubtitle}>Skilled Help. Right When You Need It.</Text>
+        </View>
+
+        {/* Modern Loader Indicator */}
         <View style={styles.loaderSection}>
-          <View style={styles.progressBarBackground}>
+          <View style={styles.progressBarTrack}>
             <Animated.View style={[styles.progressBarFill, { width: progressWidth }]} />
           </View>
           <Text style={styles.loadingText}>Connecting to nearby professionals...</Text>
         </View>
       </Animated.View>
 
-      {/* Footer Tagline */}
+      {/* Subtle Footer */}
       <View style={styles.footer}>
-        <Text style={styles.brandName}>RapidFix</Text>
-        <Text style={styles.tagline}>On-Demand Services • Instant & Verified</Text>
+        <Text style={styles.footerText}>⚡ Fast • Verified • On-Demand</Text>
       </View>
     </View>
   );
@@ -151,7 +189,7 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#EAF4FE',
+    backgroundColor: '#EDF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
@@ -159,84 +197,114 @@ const styles = StyleSheet.create({
   },
   outerGlowCircle: {
     position: 'absolute',
-    width: width * 1.4,
-    height: width * 1.4,
-    borderRadius: (width * 1.4) / 2,
-    backgroundColor: '#D9EEFE',
-    opacity: 0.5,
-    top: -width * 0.3,
+    width: width * 1.5,
+    height: width * 1.5,
+    borderRadius: (width * 1.5) / 2,
+    backgroundColor: '#DCEEFE',
+    opacity: 0.6,
+    top: -width * 0.4,
   },
   innerGlowCircle: {
     position: 'absolute',
-    width: width * 1.05,
-    height: width * 1.05,
-    borderRadius: (width * 1.05) / 2,
-    backgroundColor: '#E1F1FD',
-    bottom: -width * 0.25,
+    width: width * 1.2,
+    height: width * 1.2,
+    borderRadius: (width * 1.2) / 2,
+    backgroundColor: '#E4F2FE',
+    bottom: -width * 0.35,
   },
   contentWrapper: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     zIndex: 10,
   },
-  imageContainer: {
-    width: Math.min(width * 0.95, 520),
-    height: Math.min(width * 0.72, 340),
+  logoContainer: {
+    width: CIRCLE_SIZE + 34,
+    height: CIRCLE_SIZE + 34,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+  },
+  outerOrbitRing: {
+    position: 'absolute',
+    width: CIRCLE_SIZE + 32,
+    height: CIRCLE_SIZE + 32,
+    borderRadius: (CIRCLE_SIZE + 32) / 2,
+    borderWidth: 2,
+    borderColor: 'rgba(37, 99, 235, 0.3)',
+    borderStyle: 'dashed',
+  },
+  roundBadge: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    borderRadius: CIRCLE_SIZE / 2,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    // Premium soft elevation
     shadowColor: '#2563EB',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 25,
-    elevation: 8,
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    elevation: 12,
   },
-  splashImage: {
+  roundImage: {
     width: '100%',
     height: '100%',
   },
-  loaderSection: {
-    marginTop: 24,
+  brandSection: {
+    marginTop: 22,
     alignItems: 'center',
-    width: '80%',
-    maxWidth: 260,
   },
-  progressBarBackground: {
+  brandTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1E3A8A',
+    letterSpacing: 0.8,
+  },
+  brandSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#4B5563',
+    marginTop: 4,
+  },
+  loaderSection: {
+    marginTop: 28,
+    alignItems: 'center',
+    width: '75%',
+    maxWidth: 240,
+  },
+  progressBarTrack: {
     width: '100%',
     height: 5,
     backgroundColor: 'rgba(37, 99, 235, 0.15)',
-    borderRadius: 10,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: '#2563EB',
-    borderRadius: 10,
+    borderRadius: 8,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 12,
     fontWeight: '500',
-    color: '#4B5563',
-    letterSpacing: 0.3,
+    color: '#6B7280',
+    letterSpacing: 0.2,
   },
   footer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 44 : 28,
+    bottom: Platform.OS === 'ios' ? 40 : 24,
     alignItems: 'center',
     zIndex: 10,
   },
-  brandName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1E3A8A',
-    letterSpacing: 0.5,
-  },
-  tagline: {
+  footerText: {
     fontSize: 11,
-    color: '#6B7280',
-    marginTop: 2,
-    fontWeight: '500',
+    color: '#9CA3AF',
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
 });
