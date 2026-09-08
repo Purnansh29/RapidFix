@@ -3,10 +3,13 @@ const router = express.Router();
 const { 
   getDashboardStats, 
   getAllUsers, 
-  getUserDetails,
+  getUserDetails, 
   toggleUserStatus, 
   toggleWorkerVerification,
-  getAllJobs 
+  getAllJobs,
+  getLiveOperations,
+  getWorkerPerformance,
+  getFinancialReports,
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -15,6 +18,10 @@ router.use(protect);
 router.use(authorize('admin'));
 
 router.get('/stats', getDashboardStats);
+router.get('/live-operations', getLiveOperations);
+router.get('/workers/performance', getWorkerPerformance);
+router.get('/finance', getFinancialReports);
+
 router.get('/users', getAllUsers);
 router.get('/users/:id/details', getUserDetails);
 router.put('/users/:id/status', toggleUserStatus);

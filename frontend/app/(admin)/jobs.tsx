@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import { COLORS } from '../../constants/theme';
+import AdminDrawer from '../../components/AdminDrawer';
 
 export default function AdminJobs() {
   const [jobs, setJobs] = useState<any[]>([]);
@@ -91,10 +92,18 @@ export default function AdminJobs() {
     );
   }
 
+  const [drawerVisible, setDrawerVisible] = useState(false);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Job Monitor</Text>
+        <TouchableOpacity style={styles.hamburgerBtn} onPress={() => setDrawerVisible(true)}>
+          <Ionicons name="menu" size={24} color="#0F172A" />
+        </TouchableOpacity>
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <Text style={styles.headerTitle}>Job Monitor</Text>
+          <Text style={styles.headerSubtitle}>Real-time Platform Service Requests</Text>
+        </View>
       </View>
 
       <FlatList
@@ -109,6 +118,9 @@ export default function AdminJobs() {
           </View>
         }
       />
+
+      {/* Navigation Drawer */}
+      <AdminDrawer visible={drawerVisible} onClose={() => setDrawerVisible(false)} />
     </SafeAreaView>
   );
 }
@@ -124,15 +136,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f1f1',
   },
+  hamburgerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: '800',
     color: COLORS.text,
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
   },
   listContent: {
     padding: 16,

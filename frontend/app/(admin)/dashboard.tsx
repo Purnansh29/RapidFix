@@ -1,5 +1,16 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity, Image, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  RefreshControl,
+  TouchableOpacity,
+  Image,
+  Alert,
+  Dimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +18,17 @@ import api from '../../services/api';
 import { COLORS } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import EditProfileModal from '../../components/EditProfileModal';
+import AdminDrawer from '../../components/AdminDrawer';
+
+const { width } = Dimensions.get('window');
+
+interface ServiceDemandItem {
+  category: string;
+  count: number;
+  completed: number;
+  revenue: number;
+  percentage: number;
+}
 
 export default function AdminDashboard() {
   const { user, logout } = useAuthStore();
@@ -15,6 +37,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [drawerVisible, setDrawerVisible] = useState(false);
 
   const handleLogoutConfirm = () => {
     Alert.alert(
@@ -59,27 +82,36 @@ export default function AdminDashboard() {
     fetchStats();
   };
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading Advanced Admin Insights...</Text>
       </View>
     );
   }
 
-  const statItems = stats ? [
-    { icon: 'people', label: 'Customers', value: stats.users ?? 0, iconColor: COLORS.primary, bgColor: '#EFF6FF', borderColor: '#DBEAFE' },
-    { icon: 'construct', label: 'Professionals', value: stats.workers ?? 0, iconColor: '#0D9488', bgColor: '#F0FDFA', borderColor: '#CCFBF1' },
-    { icon: 'time', label: 'Active Jobs', value: stats.jobs?.active ?? 0, iconColor: '#8B5CF6', bgColor: '#F5F3FF', borderColor: '#DDD6FE' },
-    { icon: 'checkmark-done-circle', label: 'Completed', value: stats.jobs?.completed ?? 0, iconColor: COLORS.success, bgColor: '#ECFDF5', borderColor: '#A7F3D0' },
+  // 7 Advanced Overview Metrics
+  const advancedMetrics = stats ? [
+    { label: 'Customers', value: stats.customers ?? 0, icon: 'people', color: '#2563EB', bg: '#EFF6FF', border: '#DBEAFE' },
+    { label: 'Total Workers', value: stats.workers?.total ?? 0, icon: 'construct', color: '#0D9488', bg: '#F0FDFA', border: '#CCFBF1' },
+    { label: 'Active Workers', value: stats.workers?.active ?? 0, icon: 'shield-checkmark', color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0' },
+    { label: 'Online Workers', value: stats.workers?.online ?? 0, icon: 'wifi', color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE' },
+    { label: "Today's Jobs", value: stats.jobs?.today ?? 0, icon: 'calendar', color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A' },
+    { label: 'Completed Jobs', value: stats.jobs?.completed ?? 0, icon: 'checkmark-circle', color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
+    { label: 'Cancelled Jobs', value: stats.jobs?.cancelled ?? 0, icon: 'close-circle', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA' },
   ] : [];
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* Header with Hamburger & Profile */}
       <View style={styles.header}>
+        <TouchableOpacity style={styles.hamburgerBtn} onPress={() => setDrawerVisible(true)}>
+          <Ionicons name="menu" size={24} color="#0F172A" />
+        </TouchableOpacity>
+
         <TouchableOpacity 
-          style={styles.headerLeft} 
+          style={styles.headerProfile} 
           onPress={() => setShowEditModal(true)}
           activeOpacity={0.8}
         >
@@ -95,9 +127,10 @@ export default function AdminDashboard() {
               <Text style={styles.headerTitle}>{user?.name || 'RapidFix Admin'}</Text>
               <Ionicons name="pencil-outline" size={13} color={COLORS.primary} style={{ marginLeft: 6 }} />
             </View>
-            <Text style={styles.headerSubtitle}>Tap to edit profile • Platform Overview</Text>
+            <Text style={styles.headerSubtitle}>Enterprise Console • Overview</Text>
           </View>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogoutConfirm} activeOpacity={0.8}>
           <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
         </TouchableOpacity>
@@ -108,11 +141,11 @@ export default function AdminDashboard() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Welcome Banner */}
+        {/* Welcome Live Status Banner */}
         <View style={styles.welcomeBanner}>
           <View style={styles.welcomeLeft}>
-            <Text style={styles.welcomeTitle}>Good to see you!</Text>
-            <Text style={styles.welcomeDesc}>Here's what's happening across the platform today.</Text>
+            <Text style={styles.welcomeTitle}>Enterprise Control Center</Text>
+            <Text style={styles.welcomeDesc}>Real-time platform operations, finances & service demand.</Text>
           </View>
           <View style={styles.liveIndicator}>
             <View style={styles.liveDot} />
@@ -120,56 +153,102 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-        {/* Stats Grid */}
-        <Text style={styles.sectionLabel}>Key Metrics</Text>
-        {stats && (
-          <View style={styles.grid}>
-            {statItems.map((item, idx) => (
-              <View key={idx} style={[styles.statCard, { borderColor: item.borderColor }]}>
-                <View style={[styles.statIconBox, { backgroundColor: item.bgColor }]}>
-                  <Ionicons name={item.icon as any} size={22} color={item.iconColor} />
-                </View>
-                <Text style={styles.statValue}>{item.value}</Text>
-                <Text style={styles.statLabel}>{item.label}</Text>
-              </View>
-            ))}
-          </View>
-        )}
+        {/* Quick Launchpad to Modules */}
+        <View style={styles.launchpadRow}>
+          <TouchableOpacity 
+            style={[styles.launchBtn, { backgroundColor: '#EFF6FF', borderColor: '#DBEAFE' }]}
+            onPress={() => router.push('/(admin)/operations' as any)}
+          >
+            <Ionicons name="map" size={18} color="#2563EB" />
+            <Text style={[styles.launchBtnText, { color: '#1E40AF' }]}>Live Map</Text>
+          </TouchableOpacity>
 
-        {/* Revenue */}
+          <TouchableOpacity 
+            style={[styles.launchBtn, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
+            onPress={() => router.push('/(admin)/performance' as any)}
+          >
+            <Ionicons name="ribbon" size={18} color="#D97706" />
+            <Text style={[styles.launchBtnText, { color: '#92400E' }]}>Performance</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.launchBtn, { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7' }]}
+            onPress={() => router.push('/(admin)/finance' as any)}
+          >
+            <Ionicons name="wallet" size={18} color="#16A34A" />
+            <Text style={[styles.launchBtnText, { color: '#166534' }]}>Finance</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 📊 1. Advanced Overview Metrics */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionLabel}>📊 Advanced Platform Overview</Text>
+          <Text style={styles.sectionMeta}>{stats?.jobs?.active ?? 0} active now</Text>
+        </View>
+
+        <View style={styles.metricsGrid}>
+          {advancedMetrics.map((item, idx) => (
+            <View key={idx} style={[styles.metricCard, { borderColor: item.border }]}>
+              <View style={[styles.metricIconBox, { backgroundColor: item.bg }]}>
+                <Ionicons name={item.icon as any} size={18} color={item.color} />
+              </View>
+              <Text style={styles.metricValue}>{item.value}</Text>
+              <Text style={styles.metricLabel}>{item.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Revenue Strip Card */}
         {stats && (
-          <View style={styles.revenueCard}>
+          <TouchableOpacity 
+            style={styles.revenueCard}
+            onPress={() => router.push('/(admin)/finance' as any)}
+            activeOpacity={0.8}
+          >
             <View style={styles.revenueLeft}>
               <View style={styles.revenueIconBox}>
                 <Ionicons name="trending-up" size={22} color={COLORS.success} />
               </View>
               <View style={{ marginLeft: 14 }}>
-                <Text style={styles.revenueLabel}>Estimated Revenue Generated</Text>
-                <Text style={styles.revenueValue}>₹{stats.revenue?.toFixed(2) ?? '0.00'}</Text>
+                <Text style={styles.revenueLabel}>Platform Commission (10% Share)</Text>
+                <Text style={styles.revenueValue}>₹{stats.financials?.totalRevenue ?? 0}</Text>
+                <Text style={styles.revenueSub}>Today: ₹{stats.financials?.todayRevenue ?? 0} • This Week: ₹{stats.financials?.weeklyRevenue ?? 0}</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-          </View>
+          </TouchableOpacity>
         )}
 
-        {/* Platform Health */}
-        <Text style={[styles.sectionLabel, { marginTop: 20 }]}>Platform Health</Text>
-        <View style={styles.summaryRow}>
-          <View style={[styles.summaryCard, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-            <Ionicons name="hourglass-outline" size={20} color={COLORS.secondary} />
-            <Text style={styles.summaryValue}>{stats?.jobs?.pending ?? 0}</Text>
-            <Text style={[styles.summaryLabel, { color: '#92400E' }]}>Pending</Text>
-          </View>
-          <View style={[styles.summaryCard, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-            <Ionicons name="close-circle-outline" size={20} color={COLORS.error} />
-            <Text style={styles.summaryValue}>{stats?.jobs?.cancelled ?? 0}</Text>
-            <Text style={[styles.summaryLabel, { color: '#991B1B' }]}>Cancelled</Text>
-          </View>
-          <View style={[styles.summaryCard, { backgroundColor: '#F0FDFA', borderColor: '#CCFBF1' }]}>
-            <Ionicons name="wifi" size={20} color="#0D9488" />
-            <Text style={styles.summaryValue}>{stats?.onlineWorkers ?? 0}</Text>
-            <Text style={[styles.summaryLabel, { color: '#0F766E' }]}>Online Pros</Text>
-          </View>
+        {/* 📈 5. Business Analytics - Service Demand */}
+        <View style={[styles.sectionHeaderRow, { marginTop: 22 }]}>
+          <Text style={styles.sectionLabel}>📈 Business Analytics: Service Demand</Text>
+          <Text style={styles.sectionMeta}>Volume Breakdown</Text>
+        </View>
+
+        <View style={styles.analyticsCard}>
+          <Text style={styles.analyticsDesc}>
+            Real-time customer service requests categorized by category demand.
+          </Text>
+
+          {stats?.serviceDemand && stats.serviceDemand.map((item: ServiceDemandItem, index: number) => (
+            <View key={index} style={styles.demandRow}>
+              <View style={styles.demandHeader}>
+                <Text style={styles.demandCategory}>{item.category}</Text>
+                <Text style={styles.demandCount}>{item.count} jobs ({item.completed} completed)</Text>
+              </View>
+              <View style={styles.barBackground}>
+                <View 
+                  style={[
+                    styles.barFill, 
+                    { 
+                      width: `${item.percentage}%`,
+                      backgroundColor: index === 0 ? '#2563EB' : index === 1 ? '#0D9488' : index === 2 ? '#8B5CF6' : index === 3 ? '#F59E0B' : '#64748B'
+                    }
+                  ]} 
+                />
+              </View>
+            </View>
+          ))}
         </View>
       </ScrollView>
 
@@ -178,81 +257,208 @@ export default function AdminDashboard() {
         visible={showEditModal}
         onClose={() => setShowEditModal(false)}
       />
+
+      {/* Admin Navigation Drawer */}
+      <AdminDrawer visible={drawerVisible} onClose={() => setDrawerVisible(false)} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 13, color: '#64748B' },
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 14, backgroundColor: COLORS.surface,
-    borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center' },
-  logoBox: {
-    width: 40, height: 40, borderRadius: 12, backgroundColor: '#EFF6FF',
-    justifyContent: 'center', alignItems: 'center', marginRight: 10,
-    borderWidth: 1, borderColor: '#DBEAFE',
-    overflow: 'hidden',
-  },
-  adminAvatarImage: {
+  hamburgerBtn: {
     width: 40,
     height: 40,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  headerProfile: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoBox: {
+    width: 38,
+    height: 38,
     borderRadius: 12,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    overflow: 'hidden',
   },
-  headerTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
-  headerSubtitle: { fontSize: 12, color: COLORS.textLight },
+  adminAvatarImage: { width: '100%', height: '100%' },
+  headerTitle: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  headerSubtitle: { fontSize: 11, color: '#64748B', marginTop: 1 },
   logoutBtn: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: '#FEF2F2',
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FECACA',
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#FEF2F2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
   },
-  content: { padding: 16, paddingBottom: 30 },
+  content: { padding: 16, paddingBottom: 32 },
   welcomeBanner: {
-    backgroundColor: COLORS.surface, borderRadius: 14, padding: 16,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: 20, borderWidth: 1, borderColor: '#E2E8F0',
-    elevation: 2, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
   },
-  welcomeLeft: { flex: 1 },
-  welcomeTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
-  welcomeDesc: { fontSize: 13, color: COLORS.textLight, marginTop: 3, lineHeight: 18 },
+  welcomeLeft: { flex: 1, marginRight: 12 },
+  welcomeTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  welcomeDesc: { fontSize: 12, color: '#64748B', marginTop: 3 },
   liveIndicator: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5',
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, marginLeft: 10,
-    borderWidth: 1, borderColor: '#A7F3D0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
   },
-  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.success, marginRight: 5 },
-  liveText: { fontSize: 10, fontWeight: '800', color: COLORS.success, letterSpacing: 0.8 },
-  sectionLabel: {
-    fontSize: 12, fontWeight: '700', color: COLORS.textLight,
-    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12,
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981', marginRight: 5 },
+  liveText: { fontSize: 10, fontWeight: '800', color: '#047857' },
+  launchpadRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+    gap: 8,
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 16 },
-  statCard: {
-    width: '48%', backgroundColor: COLORS.surface, padding: 16, borderRadius: 14,
-    alignItems: 'center', marginBottom: 12, borderWidth: 1,
-    elevation: 2, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 6,
+  launchBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 6,
   },
-  statIconBox: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  statValue: { fontSize: 28, fontWeight: '800', color: COLORS.text },
-  statLabel: { fontSize: 12, color: COLORS.textLight, marginTop: 4, textAlign: 'center' },
+  launchBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  sectionLabel: { fontSize: 13, fontWeight: '800', color: '#1E293B', letterSpacing: 0.3 },
+  sectionMeta: { fontSize: 11, color: '#64748B', fontWeight: '500' },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  metricCard: {
+    width: (width - 42) / 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    elevation: 1,
+  },
+  metricIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  metricValue: { fontSize: 20, fontWeight: '800', color: '#0F172A' },
+  metricLabel: { fontSize: 11, color: '#64748B', fontWeight: '600', marginTop: 2 },
   revenueCard: {
-    backgroundColor: COLORS.surface, borderRadius: 14, padding: 16,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1, borderColor: '#A7F3D0',
-    elevation: 2, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
   },
-  revenueLeft: { flexDirection: 'row', alignItems: 'center' },
-  revenueIconBox: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center' },
-  revenueLabel: { fontSize: 12, color: COLORS.textLight, fontWeight: '600' },
-  revenueValue: { fontSize: 22, fontWeight: '800', color: COLORS.text, marginTop: 2 },
-  summaryRow: { flexDirection: 'row', gap: 10 },
-  summaryCard: { flex: 1, borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1 },
-  summaryValue: { fontSize: 20, fontWeight: '800', color: COLORS.text, marginTop: 8 },
-  summaryLabel: { fontSize: 11, fontWeight: '600', marginTop: 3, textAlign: 'center' },
+  revenueLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  revenueIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#ECFDF5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  revenueLabel: { fontSize: 11, color: '#64748B', fontWeight: '600' },
+  revenueValue: { fontSize: 22, fontWeight: '800', color: '#0F172A', marginTop: 2 },
+  revenueSub: { fontSize: 10, color: '#10B981', fontWeight: '600', marginTop: 2 },
+  analyticsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+  },
+  analyticsDesc: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 14,
+  },
+  demandRow: {
+    marginBottom: 12,
+  },
+  demandHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  demandCategory: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  demandCount: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  barBackground: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
 });

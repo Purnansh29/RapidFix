@@ -23,7 +23,7 @@ export default function AdminLayout() {
           shadowRadius: 4,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: '600',
         },
       }}
@@ -33,7 +33,34 @@ export default function AdminLayout() {
         options={{
           title: 'Overview',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'stats-chart' : 'stats-chart-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'stats-chart' : 'stats-chart-outline'} size={21} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="operations"
+        options={{
+          title: 'Live Ops',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'map' : 'map-outline'} size={21} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="performance"
+        options={{
+          title: 'Pros KPI',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'ribbon' : 'ribbon-outline'} size={21} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="finance"
+        options={{
+          title: 'Finance',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'wallet' : 'wallet-outline'} size={21} color={color} />
           ),
         }}
       />
@@ -42,17 +69,15 @@ export default function AdminLayout() {
         options={{
           title: 'Directory',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={21} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="jobs"
         options={{
-          title: 'Job Monitor',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={22} color={color} />
-          ),
+          title: 'Jobs',
+          href: null, // Accessible via Drawer and dashboard shortcuts
         }}
       />
     </Tabs>

@@ -16,6 +16,7 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../services/api';
 import { COLORS, SIZES } from '../../constants/theme';
+import AdminDrawer from '../../components/AdminDrawer';
 
 type FilterType = 'all' | 'pending' | 'workers' | 'customers';
 
@@ -25,6 +26,7 @@ export default function AdminUsers() {
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
 
   // Detailed Modal State
   const [selectedUserDetails, setSelectedUserDetails] = useState<any | null>(null);
@@ -346,8 +348,13 @@ export default function AdminUsers() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>User & Professional Directory</Text>
-        <Text style={styles.headerSubtitle}>Monitor profiles, review submissions, and manage accounts</Text>
+        <TouchableOpacity style={styles.hamburgerBtn} onPress={() => setDrawerVisible(true)}>
+          <Ionicons name="menu" size={24} color="#0F172A" />
+        </TouchableOpacity>
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <Text style={styles.headerTitle}>User & Professional Directory</Text>
+          <Text style={styles.headerSubtitle}>Monitor profiles, review submissions, and manage accounts</Text>
+        </View>
       </View>
 
       {/* Filter Tabs */}
@@ -649,6 +656,8 @@ export default function AdminUsers() {
           )}
         </SafeAreaView>
       </Modal>
+      {/* Navigation Drawer */}
+      <AdminDrawer visible={drawerVisible} onClose={() => setDrawerVisible(false)} />
     </SafeAreaView>
   );
 }
@@ -665,10 +674,20 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   header: {
-    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
     backgroundColor: COLORS.surface,
+  },
+  hamburgerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 20,
