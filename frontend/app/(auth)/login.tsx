@@ -39,7 +39,8 @@ export default function LoginScreen() {
         // _layout.tsx will handle the redirect based on authStore state change
       }
     } catch (error: any) {
-      Alert.alert('Login Failed', error.response?.data?.message || 'An error occurred');
+      const msg = error.response?.data?.message || error.message || 'Unable to connect to server. Please check your internet connection.';
+      Alert.alert('Login Failed', msg);
     } finally {
       setLoading(false);
     }

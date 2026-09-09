@@ -4,35 +4,28 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
 const getBaseUrl = () => {
-  // 1. If deployed production cloud URL (HTTPS) is configured, use it
-  if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.startsWith('https://')) {
+  // 1. If explicit env URL is configured
+  if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/api$/, '');
   }
 
-  // 2. If running on web, dynamically match host domain
+  // 2. If running on web in browser
   if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && window.location?.hostname) {
+    if (typeof window !== 'undefined' && window.location?.hostname && window.location.hostname !== 'localhost') {
       return `http://${window.location.hostname}:5000`;
     }
     return 'http://localhost:5000';
   }
 
-  // 3. Auto-detect dynamic host IP from Expo Metro bundler on physical device
+  // 3. Auto-detect dynamic host IP from Expo Metro bundler during local development
   const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri;
   if (hostUri) {
     const ip = hostUri.split(':')[0];
     return `http://${ip}:5000`;
   }
 
-  // 4. If env is defined
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL.replace(/\/api$/, '');
-  }
-
-  // 5. Fallback from ENV
-  return process.env.EXPO_PUBLIC_API_URL
-    ? process.env.EXPO_PUBLIC_API_URL.replace(/\/api$/, '')
-    : 'http://localhost:5000';
+  // 4. Standalone Mobile APK Production Cloud Backend
+  return 'https://rapidfix-backend.onrender.com';
 };
 
 const SOCKET_URL = getBaseUrl();
